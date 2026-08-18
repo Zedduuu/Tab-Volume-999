@@ -3,7 +3,7 @@
  *
  * 为每个标签页建立一条音频链路：
  *     标签页音频流 → MediaStreamAudioSourceNode → GainNode → audioCtx.destination
- *   GainNode 增益范围 0 ~ 2 对应音量 0% ~ 200%。
+ *   GainNode 增益范围 0 ~ 9.99 对应音量 0% ~ 999%。
  *   同时负责把原标签页静音（避免双份声音）与按需解除静音。
  * ========================================================================= */
 
@@ -56,7 +56,7 @@ class TabAudioSession {
   }
 
   /**
-   * 平滑地设置增益（0 = 静音，1 = 100%，2 = 200%）。
+   * 平滑地设置增益（0 = 静音，1 = 100%，9.99 = 999%）。
    * 用指数逼近曲线而非直接赋值，避免音量突变产生“咔哒”爆音。
    */
   setVolume(volume) {
@@ -93,6 +93,9 @@ class TabAudioSession {
 }
 
 /* ------------------------------ 工具函数 ------------------------------ */
+
+/** i18n 取词简写 */
+const t = (key, ...args) => chrome.i18n.getMessage(key, args);
 
 /** 向 background 广播事件（fire-and-forget，不占用响应通道） */
 function notifyBackground(payload) {
@@ -140,10 +143,10 @@ async function handleStart({ tabId }) {
 function friendlyCaptureError(err) {
   const m = String(err?.message || '');
   const name = String(err?.name || '');
-  if (/already|captur/i.test(m)) return '该标签页正被录制（本扩展或其它软件），无法重复接管';
-  if (name === 'NotAllowedError') return '浏览器拒绝了音频捕获（请检查权限设置）';
+  if (/already|captur/i.test(m)) return t('errAlreadyCaptured');
+  if (name === 'NotAllowedError') return t('errNotAllowed');
   if (name === 'NotSupportedError' || /constraint/i.test(m)) {
-    return '当前浏览器不支持该捕获方式';
+    return t('errNotSupported');
   }
   return `${name}: ${m}`;
 }
@@ -170,7 +173,7 @@ async function handleCapture({ tabId, streamId, volume }) {
     stream = await getUserMediaTab(streamId);
   } catch (err) {
     notifyBackground({ event: 'error', tabId, error: String(err?.message || err) });
-    return { ok: false, error: `无法捕获标签页音频：${friendlyCaptureError(err)}` };
+    return { ok: false, error: t('errCaptureFailed', [friendlyCaptureError(err)]) };
   }
 
   // 防止 AudioContext 被自动播放策略挂起

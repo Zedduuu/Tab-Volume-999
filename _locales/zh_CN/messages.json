@@ -1,0 +1,99 @@
+{
+  "extName": { "message": "Tab Volume 999" },
+  "extDesc": {
+    "message": "独立调节每个标签页的音量（0% ~ 999%，100% 居中）：滚轮 ±5%、按住左键快调、滑块，各标签页互不影响。"
+  },
+  "extDefaultTitle": { "message": "Tab Volume 999 · 点击后用滚轮调节音量" },
+
+  "tabDomainDefault": { "message": "当前标签页" },
+  "hintText": { "message": "仅影响当前标签页 · 滚轮即可调节" },
+  "gaugeAria": { "message": "音量仪表" },
+  "tagNormal": { "message": "正常音量" },
+  "btnMinusTitle": { "message": "降低 5%" },
+  "sliderAria": { "message": "音量" },
+  "btnPlusTitle": { "message": "提高 5%" },
+  "btnMute": { "message": "🔇 静音" },
+  "btnReset": { "message": "↺ 重置 100%" },
+  "btnInfo": { "message": "📖 操作 & 说明" },
+  "statusConnecting": { "message": "正在连接…" },
+  "btnRelease": { "message": "⇤ 释放接管" },
+  "btnRetry": { "message": "↻ 重试接管" },
+  "infoTitle": { "message": "📖 使用说明" },
+  "infoCloseAria": { "message": "关闭" },
+  "infoOpsTitle": { "message": "🎛️ 操作方式" },
+  "infoWheelKey": { "message": "<kbd>滚轮</kbd>" },
+  "infoWheelStep": { "message": "音量 ±5%" },
+  "infoHoldKey": { "message": "<kbd>按住左键</kbd>＋<kbd>滚轮</kbd>" },
+  "infoHoldStep": { "message": "音量 ±20%" },
+  "infoAboutTitle": { "message": "ℹ️ 关于本扩展" },
+  "infoAbout1": {
+    "message": "只调节「当前标签页」音量，各标签页独立、互不影响"
+  },
+  "infoAbout2": {
+    "message": "接管标签页的全部音频（含 WebAudio 与任意播放器），支持 0% ~ 999%"
+  },
+  "infoAbout3": {
+    "message": "100% 位于仪表盘与滑块的<b>中心</b>，滚轮每次 ±5%（按住左键为 ±20%）"
+  },
+  "infoAbout4": {
+    "message": "超过约 200% 后声音会明显失真（增益放大超出硬件/数字上限，属物理限制）"
+  },
+  "infoAbout5": {
+    "message": "浏览器内置页面（edge://、扩展商店等）无法接管"
+  },
+  "infoAbout6": {
+    "message": "需要 <code>tabCapture</code> 权限（安装时提示「捕获屏幕内容」）"
+  },
+  "infoLatencyTitle": { "message": "⏱️ 音频延迟说明" },
+  "infoLatencyNote": {
+    "message": "调节音量时，音频需经过「捕获 → 回放」管道，每一跳都有缓冲："
+  },
+  "infoLatencyPipeline": { "message": "标签页 → tabCapture → AudioContext → 扬声器" },
+  "infoLatency1": {
+    "message": "合计约 <b>20~50ms</b>，同类扩展均如此，代码层面无法消除"
+  },
+  "infoLatency2": {
+    "message": "音量为 100% 或点「⇤ 释放接管」时<b>绕过管道</b>，原生播放、零延迟"
+  },
+  "tagMuted": { "message": "已静音" },
+  "tagZero": { "message": "音量归零" },
+  "tagLow": { "message": "降低音量" },
+  "tagBoost": { "message": "增益中 >100%" },
+  "btnUnmute": { "message": "🔊 恢复" },
+  "btnReengage": { "message": "重新接管" },
+  "errNoTab": { "message": "无法获取当前标签页" },
+  "statusConnectingTab": { "message": "正在连接本页音频…" },
+  "statusCaptured": { "message": "✓ 已接管本页音频" },
+  "errConnect": { "message": "连接失败" },
+  "errCapture": { "message": "接管失败" },
+  "errNoStream": { "message": "无法获取音频流" },
+  "toastReset": { "message": "已重置为 100%" },
+  "toastMuted": { "message": "已静音" },
+  "toastUnmuted": { "message": "已恢复声音" },
+  "statusReleased": { "message": "✓ 已释放接管，恢复原生播放" },
+  "toastReleased": { "message": "已释放本页接管" },
+  "statusRecapturing": { "message": "页面跳转，正在自动重新接管…" },
+  "errPrefix": { "message": "出错了：" },
+  "errCapturePrefix": { "message": "无法接管音频：" },
+
+  "errInvalidParams": { "message": "参数无效" },
+  "errMissingParams": { "message": "参数无效：缺少 tabId 或 streamId" },
+  "errRecapture": { "message": "重新接管失败" },
+  "offscreenJustification": {
+    "message": "回放标签页被接管的音频，并通过 Web Audio 增益节点实现 0%~999% 音量调节。"
+  },
+
+  "errAlreadyCaptured": {
+    "message": "该标签页正被录制（本扩展或其它软件），无法重复接管"
+  },
+  "errNotAllowed": {
+    "message": "浏览器拒绝了音频捕获（请检查权限设置）"
+  },
+  "errNotSupported": {
+    "message": "当前浏览器不支持该捕获方式"
+  },
+  "errCaptureFailed": {
+    "message": "无法捕获标签页音频：$1"
+  }
+}
+

@@ -50,6 +50,12 @@ const elDomain = $('tab-domain');
 
 /* ------------------------------ 工具函数 ------------------------------ */
 
+/** i18n 取词：chrome.i18n.getMessage 的简写（可选传参 $1/$2…） */
+const t = (key, ...args) => chrome.i18n.getMessage(key, args);
+
+// 让 <html lang> 跟随浏览器 UI 语言（供 aria/无障碍与样式判断）
+document.documentElement.lang = chrome.i18n.getUILanguage();
+
 const clamp = (v) => Math.min(VOLUME.MAX, Math.max(VOLUME.MIN, Math.round(Number(v) || 0)));
 
 /**
@@ -96,16 +102,16 @@ function render() {
 
   // 音量语义标签
   elTag.textContent = state.muted
-    ? '已静音'
-    : effective === 0 ? '音量归零'
-    : effective < 100 ? '降低音量'
-    : effective === 100 ? '正常音量'
-    : '增益中 >100%';
+    ? t('tagMuted')
+    : effective === 0 ? t('tagZero')
+    : effective < 100 ? t('tagLow')
+    : effective === 100 ? t('tagNormal')
+    : t('tagBoost');
 
   // 滑块（物理中心 = 100%）与静音按钮状态
   elSlider.value = String(volumeToSlider(effective));
   elSlider.style.accentColor = color;
-  elMute.textContent = state.muted ? '🔊 恢复' : '🔇 静音';
+  elMute.textContent = state.muted ? t('btnUnmute') : t('btnMute');
   elMute.classList.toggle('muted', state.muted);
 }
 
@@ -137,7 +143,7 @@ function applyVolume({ volume, muted } = {}) {
   // 已释放接管时，任何调节操作都视为“重新接管”（异步建立会话）
   if (sessionReleased) {
     sessionReleased = false;
-    $('btn-release').textContent = '⇤ 释放接管';
+    $('btn-release').textContent = t('btnRelease');
     $('btn-release').classList.remove('released');
     startCapture();
   }
@@ -203,14 +209,14 @@ async function doSync() {
 async function init() {
   try {
     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-    if (!tab || typeof tab.id !== 'number') throw new Error('无法获取当前标签页');
+    if (!tab || typeof tab.id !== 'number') throw new Error(t('errNoTab'));
     currentTabId = tab.id;
 
     // 显示域名（activeTab 授权下可读取 url）
     try {
       const url = new URL(tab.url);
-      elDomain.textContent = url.hostname || '当前标签页';
-    } catch { elDomain.textContent = '当前标签页'; }
+      elDomain.textContent = url.hostname || t('tabDomainDefault');
+    } catch { elDomain.textContent = t('tabDomainDefault'); }
 
     // 读取该标签页已保存的音量设置
     const data = await chrome.storage.local.get(STORAGE_KEY);
@@ -227,7 +233,7 @@ async function init() {
 
     await startCapture();
   } catch (err) {
-    setStatus('error', `出错了：${err.message}`);
+    setStatus('error', t('errPrefix') + err.message);
   }
 }
 
@@ -242,17 +248,17 @@ let isStarting = false; // 接管进行中锁：防止「重试」连点 / 释�
 async function startCapture() {
   if (isStarting) return;
   isStarting = true;
-  setStatus('idle', '正在连接本页音频…');
+  setStatus('idle', t('statusConnectingTab'));
   try {
     // 1) 探测：会话已存在则直接复用
     const probe = await chrome.runtime.sendMessage({ type: MSG.START, tabId: currentTabId });
     if (probe?.ok) {
-      setStatus('ok', probe.alreadyActive ? '✓ 音频已接管' : '✓ 已接管本页音频');
+      setStatus('ok', t('statusCaptured'));
       return;
     }
     // 探测失败且有明确原因（非“需要新建捕获”）时直接报错
     if (!probe?.needsCapture) {
-      throw new Error(probe?.error || '连接失败');
+      throw new Error(probe?.error || t('errConnect'));
     }
 
     // 2) 新建捕获：在本弹窗（用户手势上下文）中获取 streamId
@@ -263,10 +269,10 @@ async function startCapture() {
       streamId,
       volume: state.muted ? 0 : state.volume,
     });
-    if (!resp?.ok) throw new Error(resp?.error || '接管失败');
-    setStatus('ok', resp.alreadyActive ? '✓ 音频已接管' : '✓ 已接管本页音频');
+    if (!resp?.ok) throw new Error(resp?.error || t('errCapture'));
+    setStatus('ok', t('statusCaptured'));
   } catch (err) {
-    setStatus('error', `无法接管音频：${err.message}`);
+    setStatus('error', t('errCapturePrefix') + err.message);
   } finally {
     isStarting = false;
   }
@@ -286,7 +292,7 @@ async function getMediaStreamIdWithRetry() {
       tabId: currentTabId,
     });
     if (resp?.ok) return resp.streamId;
-    throw new Error(resp?.error || '无法获取音频流');
+    throw new Error(resp?.error || t('errNoStream'));
   }
 }
 
@@ -332,13 +338,13 @@ $('btn-plus').addEventListener('click', () => {
 /** 重置 100% */
 $('btn-reset').addEventListener('click', () => {
   applyVolume({ volume: VOLUME.DEFAULT });
-  showToast('已重置为 100%');
+  showToast(t('toastReset'));
 });
 
 /** 静音 / 恢复 */
 $('btn-mute').addEventListener('click', () => {
   applyVolume({ muted: !state.muted });
-  showToast(state.muted ? '已静音' : '已恢复声音');
+  showToast(state.muted ? t('toastMuted') : t('toastUnmuted'));
 });
 
 /** 接管失败后的手动重试 */
@@ -367,7 +373,7 @@ $('btn-release').addEventListener('click', () => {
   if (sessionReleased) {
     // 重新接管
     sessionReleased = false;
-    $('btn-release').textContent = '⇤ 释放接管';
+    $('btn-release').textContent = t('btnRelease');
     $('btn-release').classList.remove('released');
     startCapture();
     return;
@@ -377,10 +383,10 @@ $('btn-release').addEventListener('click', () => {
   chrome.runtime.sendMessage({ type: MSG.STOP, tabId: currentTabId }).catch(() => {});
   state = { volume: VOLUME.DEFAULT, muted: false, lastVolume: VOLUME.DEFAULT };
   render();
-  setStatus('ok', '✓ 已释放接管，恢复原生播放');
-  $('btn-release').textContent = '重新接管';
+  setStatus('ok', t('statusReleased'));
+  $('btn-release').textContent = t('btnReengage');
   $('btn-release').classList.add('released');
-  showToast('已释放本页接管');
+  showToast(t('toastReleased'));
 });
 
 /** 被动监听后台广播：页面跳转导致流中断时给出提示（不占用响应通道） */
@@ -390,7 +396,7 @@ chrome.runtime.onMessage.addListener((message) => {
     message.event === 'ended' &&
     message.tabId === currentTabId
   ) {
-    setStatus('warn', '页面跳转，正在自动重新接管…');
+    setStatus('warn', t('statusRecapturing'));
   }
   return false;
 });

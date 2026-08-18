@@ -57,6 +57,9 @@ const recaptureTimers = {};
 
 /* ------------------------------ 工具函数 ------------------------------ */
 
+/** i18n 取词简写 */
+const t = (key, ...args) => chrome.i18n.getMessage(key, args);
+
 /** 把音量夹紧到 0 ~ 200 并取整 */
 function clampVolume(value) {
   const v = Math.round(Number(value));
@@ -182,7 +185,7 @@ function updateBadge(tabId, state) {
       return;
     }
     const effective = state.muted ? 0 : state.volume;
-    // 0/静音 = 红；1~100 = 绿；101~200 = 紫
+    // 0/静音 = 红；1~100 = 绿；101~999 = 紫
     const color = effective === 0 ? '#ff453a' : effective <= 100 ? '#30d158' : '#bf5af2';
     renderBadgeText(tabId, String(effective), color);
   }, 80));
@@ -217,7 +220,7 @@ async function ensureOffscreenDocument() {
     await chrome.offscreen.createDocument({
       url: OFFSCREEN_URL,
       reasons: ['AUDIO_PLAYBACK'],
-      justification: '回放标签页被接管的音频，并通过 Web Audio 增益节点实现 0%~200% 音量调节。',
+      justification: t('offscreenJustification'),
     });
   } catch (err) {
     // 并发创建时可能出现“已存在”，属正常，放行即可
@@ -238,7 +241,7 @@ async function unmuteTab(tabId) {
  * 重复调用 getMediaStreamId 会失败，导致面板控件全部失效。
  */
 async function handleStart({ tabId }) {
-  if (typeof tabId !== 'number') return { ok: false, error: '参数无效' };
+  if (typeof tabId !== 'number') return { ok: false, error: t('errInvalidParams') };
   await ensureOffscreenDocument();
   const resp = await sendToOffscreen({ type: MSG.OFFSCREEN_START, tabId });
   if (resp?.alreadyActive) {
@@ -255,7 +258,7 @@ async function handleStart({ tabId }) {
  */
 async function handleCapture({ tabId, streamId, volume }) {
   if (typeof tabId !== 'number' || typeof streamId !== 'string') {
-    return { ok: false, error: '参数无效：缺少 tabId 或 streamId' };
+    return { ok: false, error: t('errMissingParams') };
   }
   await ensureOffscreenDocument();
   const resp = await sendToOffscreen({
@@ -277,7 +280,7 @@ async function handleCapture({ tabId, streamId, volume }) {
  * 当 popup 自身的 getMediaStreamId 因手势/上下文限制失败时作为兜底。
  */
 async function handleGetStreamId({ tabId }) {
-  if (typeof tabId !== 'number') return { ok: false, error: '参数无效' };
+  if (typeof tabId !== 'number') return { ok: false, error: t('errInvalidParams') };
   try {
     const streamId = await chrome.tabCapture.getMediaStreamId({ targetTabId: tabId });
     return { ok: true, streamId };
@@ -291,7 +294,7 @@ async function handleGetStreamId({ tabId }) {
  * 停止捕获、还原标签页静音状态、清除音量设置与徽标，恢复原生播放（消除延迟）。
  */
 async function handleStop({ tabId }) {
-  if (typeof tabId !== 'number') return { ok: false, error: '参数无效' };
+  if (typeof tabId !== 'number') return { ok: false, error: t('errInvalidParams') };
   try {
     await sendToOffscreen({ type: MSG.OFFSCREEN_STOP, tabId });
   } catch { /* 离屏可能未运行 */ }
@@ -301,7 +304,7 @@ async function handleStop({ tabId }) {
 
 /** popup 请求：修改音量（写入存储 + 转发离屏立即生效） */
 async function handleSetVolume({ tabId, volume, muted }) {
-  if (typeof tabId !== 'number') return { ok: false, error: '参数无效' };
+  if (typeof tabId !== 'number') return { ok: false, error: t('errInvalidParams') };
 
   // 1) 持久化：无论离屏是否在运行都先落盘，重捕/刷新时可据此恢复
   const sessions = await loadSessions();
@@ -382,7 +385,7 @@ async function recaptureTab(tabId, attempt) {
       streamId,
       volume: state.muted ? 0 : state.volume,
     });
-    if (!resp?.ok) throw new Error(resp?.error || '重新接管失败');
+    if (!resp?.ok) throw new Error(resp?.error || t('errRecapture'));
     await updateBadge(tabId, state);
   } catch (err) {
     if (attempt < RECAPTURE.MAX_ATTEMPTS) {

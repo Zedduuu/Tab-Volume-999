@@ -13,6 +13,7 @@
 ![license](https://img.shields.io/badge/license-GPL--3.0-blue) ![mv3](https://img.shields.io/badge/Manifest-V3-brightgreen)
 
 > 兼容 Microsoft Edge 与 Chrome（Chromium 109+，Manifest V3）。
+> 界面支持 **简体中文 / English**，自动跟随浏览器语言切换。
 
 ---
 
@@ -168,6 +169,7 @@ popup（用户手势）
 ```text
 tab-volume-999/
 ├─ manifest.json          # MV3 清单（权限：tabCapture / offscreen / storage / activeTab）
+├─ _locales/              # 国际化：en（English）/ zh_CN（简体中文）各一份 messages.json
 ├─ background.js          # 后台：消息路由、离屏生命周期、状态持久化、接管/释放、断线重捕
 ├─ offscreen.html         # 离屏文档入口（不可见，真正发声的页面）
 ├─ offscreen.js           # 音频引擎：建流、增益、静音管理、会话清理

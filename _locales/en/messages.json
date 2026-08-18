@@ -1,0 +1,99 @@
+{
+  "extName": { "message": "Tab Volume 999" },
+  "extDesc": {
+    "message": "Adjust the volume of each browser tab independently, from 0% up to 999%. Scroll the wheel inside the panel to control in real time."
+  },
+  "extDefaultTitle": { "message": "Tab Volume 999 · Click, then scroll to adjust volume" },
+
+  "tabDomainDefault": { "message": "Current tab" },
+  "hintText": { "message": "Affects only this tab · Scroll wheel to adjust" },
+  "gaugeAria": { "message": "Volume gauge" },
+  "tagNormal": { "message": "Normal volume" },
+  "btnMinusTitle": { "message": "Decrease 5%" },
+  "sliderAria": { "message": "Volume" },
+  "btnPlusTitle": { "message": "Increase 5%" },
+  "btnMute": { "message": "Mute" },
+  "btnReset": { "message": "Reset to 100%" },
+  "btnInfo": { "message": "Help & About" },
+  "statusConnecting": { "message": "Connecting…" },
+  "btnRelease": { "message": "Release" },
+  "btnRetry": { "message": "Retry" },
+  "infoTitle": { "message": "Help" },
+  "infoCloseAria": { "message": "Close" },
+  "infoOpsTitle": { "message": "Controls" },
+  "infoWheelKey": { "message": "<kbd>Wheel</kbd>" },
+  "infoWheelStep": { "message": "Volume ±5%" },
+  "infoHoldKey": { "message": "<kbd>Hold left button</kbd>＋<kbd>Wheel</kbd>" },
+  "infoHoldStep": { "message": "Volume ±20%" },
+  "infoAboutTitle": { "message": "About this extension" },
+  "infoAbout1": {
+    "message": "Only adjusts the current tab's volume; every tab is independent and unaffected by others."
+  },
+  "infoAbout2": {
+    "message": "Captures all audio of the tab (WebAudio and any player included), from 0% to 999%."
+  },
+  "infoAbout3": {
+    "message": "100% sits at the <b>center</b> of the gauge and slider; wheel step ±5% (hold left button ±20%)."
+  },
+  "infoAbout4": {
+    "message": "Above ~200%, audio becomes noticeably distorted (a physical limit of gain amplification)."
+  },
+  "infoAbout5": {
+    "message": "Browser built-in pages (edge://, Web Store, PDF viewer, etc.) cannot be captured."
+  },
+  "infoAbout6": {
+    "message": "Requires the <code>tabCapture</code> permission (shown as \"Capture screen content\" at install)."
+  },
+  "infoLatencyTitle": { "message": "Audio latency" },
+  "infoLatencyNote": {
+    "message": "When adjusting, audio passes through a capture → playback pipeline with buffering at each hop:"
+  },
+  "infoLatencyPipeline": { "message": "Tab → tabCapture → AudioContext → Speaker" },
+  "infoLatency1": {
+    "message": "Total ~<b>20–50ms</b>; common to all such extensions and cannot be removed at the code level."
+  },
+  "infoLatency2": {
+    "message": "At 100% volume (or after \"Release\"), audio <b>bypasses the pipeline</b> and plays natively with zero latency."
+  },
+
+  "tagMuted": { "message": "Muted" },
+  "tagZero": { "message": "Volume is 0" },
+  "tagLow": { "message": "Lower volume" },
+  "tagBoost": { "message": "Boosting >100%" },
+  "btnUnmute": { "message": "Unmute" },
+  "btnReengage": { "message": "Re-engage" },
+  "errNoTab": { "message": "Cannot get the current tab" },
+  "statusConnectingTab": { "message": "Connecting to this tab's audio…" },
+  "statusCaptured": { "message": "Audio captured" },
+  "errConnect": { "message": "Connection failed" },
+  "errCapture": { "message": "Capture failed" },
+  "errNoStream": { "message": "Cannot get the audio stream" },
+  "toastReset": { "message": "Reset to 100%" },
+  "toastMuted": { "message": "Muted" },
+  "toastUnmuted": { "message": "Sound restored" },
+  "statusReleased": { "message": "Released · native playback restored" },
+  "toastReleased": { "message": "Released this tab" },
+  "statusRecapturing": { "message": "Page navigated · auto re-engaging…" },
+  "errPrefix": { "message": "Error: " },
+  "errCapturePrefix": { "message": "Cannot take over audio: " },
+
+  "errInvalidParams": { "message": "Invalid parameters" },
+  "errMissingParams": { "message": "Invalid parameters: missing tabId or streamId" },
+  "errRecapture": { "message": "Re-engage failed" },
+  "offscreenJustification": {
+    "message": "Plays back the captured audio of tabs and applies Web Audio gain (0% ~ 999%)."
+  },
+
+  "errAlreadyCaptured": {
+    "message": "This tab is already being captured (by this or another extension) and cannot be captured again"
+  },
+  "errNotAllowed": {
+    "message": "The browser denied audio capture (please check permission settings)"
+  },
+  "errNotSupported": {
+    "message": "This browser does not support this capture method"
+  },
+  "errCaptureFailed": {
+    "message": "Cannot capture tab audio: $1"
+  }
+}

@@ -13,12 +13,12 @@
   <main id="app">
     <!-- 顶部：当前标签页信息 -->
     <header>
-      <div class="domain" id="tab-domain">当前标签页</div>
-      <div class="hint">仅影响当前标签页 · 滚轮即可调节</div>
+      <div class="domain" id="tab-domain">__MSG_tabDomainDefault__</div>
+      <div class="hint">__MSG_hintText__</div>
     </header>
 
     <!-- 环形仪表盘 + 百分比大数字 -->
-    <section class="gauge" aria-label="音量仪表">
+    <section class="gauge" aria-label="__MSG_gaugeAria__">
       <svg viewBox="0 0 200 200" aria-hidden="true">
         <circle class="gauge-track" cx="100" cy="100" r="84"></circle>
         <circle class="gauge-arc" id="gauge-arc" cx="100" cy="100" r="84"></circle>
@@ -27,30 +27,30 @@
         <div class="gauge-value" id="volume-value">100</div>
         <div class="gauge-unit">%</div>
       </div>
-      <div class="gauge-tag" id="volume-tag">正常音量</div>
+      <div class="gauge-tag" id="volume-tag">__MSG_tagNormal__</div>
     </section>
 
     <!-- 滑块 + 步进按钮 -->
     <section class="controls">
-      <button id="btn-minus" type="button" title="降低 5%">−</button>
-      <input id="slider" type="range" min="0" max="1000" step="1" value="500" aria-label="音量">
-      <button id="btn-plus" type="button" title="提高 5%">＋</button>
+      <button id="btn-minus" type="button" title="__MSG_btnMinusTitle__">−</button>
+      <input id="slider" type="range" min="0" max="1000" step="1" value="500" aria-label="__MSG_sliderAria__">
+      <button id="btn-plus" type="button" title="__MSG_btnPlusTitle__">＋</button>
     </section>
     <div class="slider-labels"><span>0%</span><span>100%</span><span>999%</span></div>
 
     <!-- 操作按钮 -->
     <section class="actions">
-      <button id="btn-mute" type="button" class="action-btn">🔇 静音</button>
-      <button id="btn-reset" type="button" class="action-btn">↺ 重置 100%</button>
+      <button id="btn-mute" type="button" class="action-btn">__MSG_btnMute__</button>
+      <button id="btn-reset" type="button" class="action-btn">__MSG_btnReset__</button>
     </section>
 
     <!-- 状态栏 + 说明按钮 -->
     <footer>
-      <button id="btn-info" class="info-btn" type="button">📖 操作 &amp; 说明</button>
-      <div id="status" class="status status-idle">正在连接…</div>
+      <button id="btn-info" class="info-btn" type="button">__MSG_btnInfo__</button>
+      <div id="status" class="status status-idle">__MSG_statusConnecting__</div>
       <div class="footer-actions">
-        <button id="btn-release" class="release-btn" type="button">⇤ 释放接管</button>
-        <button id="btn-retry" class="retry-btn hidden" type="button">↻ 重试接管</button>
+        <button id="btn-release" class="release-btn" type="button">__MSG_btnRelease__</button>
+        <button id="btn-retry" class="retry-btn hidden" type="button">__MSG_btnRetry__</button>
       </div>
     </footer>
   </main>
@@ -59,39 +59,39 @@
   <aside id="info-panel" class="info-panel" aria-hidden="true">
     <div class="info-panel-inner">
       <header class="info-panel-header">
-        <span>📖 使用说明</span>
-        <button id="btn-info-close" class="info-close" type="button" aria-label="关闭">✕</button>
+        <span>__MSG_infoTitle__</span>
+        <button id="btn-info-close" class="info-close" type="button" aria-label="__MSG_infoCloseAria__">✕</button>
       </header>
 
       <section class="info-section">
-        <h3>🎛️ 操作方式</h3>
+        <h3>__MSG_infoOpsTitle__</h3>
         <div class="info-grid">
-          <div class="info-row"><span class="info-keys"><kbd>滚轮</kbd></span><span>音量 ±5%</span></div>
-          <div class="info-row"><span class="info-keys"><kbd>按住左键</kbd>＋<kbd>滚轮</kbd></span><span>音量 ±20%</span></div>
+          <div class="info-row"><span class="info-keys">__MSG_infoWheelKey__</span><span>__MSG_infoWheelStep__</span></div>
+          <div class="info-row"><span class="info-keys">__MSG_infoHoldKey__</span><span>__MSG_infoHoldStep__</span></div>
         </div>
       </section>
 
       <section class="info-section">
-        <h3>ℹ️ 关于本扩展</h3>
+        <h3>__MSG_infoAboutTitle__</h3>
         <ul class="info-list">
-          <li>只调节「当前标签页」音量，各标签页独立、互不影响</li>
-          <li>接管标签页的全部音频（含 WebAudio 与任意播放器），支持 0% ~ 999%</li>
-          <li>100% 位于仪表盘与滑块的<b>中心</b>，滚轮每次 ±5%（按住左键为 ±20%）</li>
-          <li>超过约 200% 后声音会明显失真（增益放大超出硬件/数字上限，属物理限制）</li>
-          <li>浏览器内置页面（edge://、扩展商店等）无法接管</li>
-          <li>需要 <code>tabCapture</code> 权限（安装时提示「捕获屏幕内容」）</li>
+          <li>__MSG_infoAbout1__</li>
+          <li>__MSG_infoAbout2__</li>
+          <li>__MSG_infoAbout3__</li>
+          <li>__MSG_infoAbout4__</li>
+          <li>__MSG_infoAbout5__</li>
+          <li>__MSG_infoAbout6__</li>
         </ul>
       </section>
 
       <section class="info-section">
-        <h3>⏱️ 音频延迟说明</h3>
+        <h3>__MSG_infoLatencyTitle__</h3>
         <p class="info-note">
-          调节音量时，音频需经过「捕获 → 回放」管道，每一跳都有缓冲：
+          __MSG_infoLatencyNote__
         </p>
-        <p class="info-note mono">标签页 → tabCapture → AudioContext → 扬声器</p>
+        <p class="info-note mono">__MSG_infoLatencyPipeline__</p>
         <ul class="info-list">
-          <li>合计约 <b>20~50ms</b>，同类扩展均如此，代码层面无法消除</li>
-          <li>音量为 100% 或点「⇤ 释放接管」时<b>绕过管道</b>，原生播放、零延迟</li>
+          <li>__MSG_infoLatency1__</li>
+          <li>__MSG_infoLatency2__</li>
         </ul>
       </section>
     </div>
