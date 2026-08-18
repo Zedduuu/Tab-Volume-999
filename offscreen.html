@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <title>Tab Volume 999 - 离屏音频播放</title>
+</head>
+<body>
+  <!--
+    离屏文档（Offscreen Document）：本页不可见，是扩展真正的“发声引擎”。
+    后台脚本负责创建本页；本页脚本 offscreen.js 在其中构建
+    “标签页音频流 → GainNode → 扬声器”的完整链路。
+  -->
+  <script src="offscreen.js"></script>
+</body>
+</html>

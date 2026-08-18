@@ -1,0 +1,26 @@
+{
+  "manifest_version": 3,
+  "name": "Tab Volume 999",
+  "version": "1.0.0",
+  "description": "独立调节每个标签页的音量（0% ~ 999%，100% 居中）：滚轮 ±5%、按住左键快调、滑块，各标签页互不影响。",
+  "permissions": ["tabCapture", "offscreen", "storage", "activeTab"],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "action": {
+    "default_title": "Tab Volume 999 · 点击后用滚轮调节音量",
+    "default_popup": "popup/popup.html",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "32": "icons/icon32.png",
+      "48": "icons/icon48.png",
+      "128": "icons/icon128.png"
+    }
+  },
+  "icons": {
+    "16": "icons/icon16.png",
+    "32": "icons/icon32.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  }
+}
