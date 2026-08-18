@@ -48,13 +48,48 @@ const elMute = $('btn-mute');
 const elStatus = $('status');
 const elDomain = $('tab-domain');
 
-/* ------------------------------ 工具函数 ------------------------------ */
+/* ------------------------------ i18n（可手动切换语言） ------------------------------ */
 
-/** i18n 取词：chrome.i18n.getMessage 的简写（可选传参 $1/$2…） */
-const t = (key, ...args) => chrome.i18n.getMessage(key, args);
+/** 当前生效的语言与语言包（由 i18n-util.js 的 I18N 提供） */
+let i18nLang = I18N.DEFAULT;
+let i18nMessages = null;
 
-// 让 <html lang> 跟随浏览器 UI 语言（供 aria/无障碍与样式判断）
-document.documentElement.lang = chrome.i18n.getUILanguage();
+/** 取词：优先当前语言包；未命中回退 chrome.i18n（浏览器语言）；再回退 key 本身 */
+function t(key, ...args) {
+  const m = i18nMessages?.[key];
+  if (m && typeof m.message === 'string') return I18N.format(m.message, args);
+  const fb = chrome.i18n.getMessage(key, args);
+  return fb || key;
+}
+
+/** 按 data-i18n / data-i18n-title / data-i18n-aria 属性统一填充文案 */
+function applyI18n() {
+  document.querySelectorAll('[data-i18n]').forEach((el) => {
+    el.innerHTML = t(el.dataset.i18n);
+  });
+  document.querySelectorAll('[data-i18n-title]').forEach((el) => {
+    el.title = t(el.dataset.i18nTitle);
+  });
+  document.querySelectorAll('[data-i18n-aria]').forEach((el) => {
+    el.setAttribute('aria-label', t(el.dataset.i18nAria));
+  });
+}
+
+/** 语言菜单：高亮当前语言 */
+function renderLangMenu() {
+  document.querySelectorAll('.lang-item').forEach((btn) => {
+    btn.classList.toggle('active', btn.dataset.lang === i18nLang);
+  });
+}
+
+/** 读取用户偏好语言 → 加载语言包 → 应用文案。返回所选语言 */
+async function initI18n() {
+  i18nLang = await I18N.getPreferredLocale();
+  i18nMessages = await I18N.loadMessages(i18nLang);
+  document.documentElement.lang = I18N.HTML_LANGS[i18nLang] || i18nLang;
+  applyI18n();
+  renderLangMenu();
+}
 
 const clamp = (v) => Math.min(VOLUME.MAX, Math.max(VOLUME.MIN, Math.round(Number(v) || 0)));
 
@@ -205,8 +240,9 @@ async function doSync() {
 
 /* ------------------------------ 接管流程 ------------------------------ */
 
-/** 初始化：获取当前标签页、读取已有状态、开始接管音频 */
+/** 初始化：应用 i18n 文案 → 获取当前标签页 → 读取已有状态 → 开始接管音频 */
 async function init() {
+  await initI18n();
   try {
     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
     if (!tab || typeof tab.id !== 'number') throw new Error(t('errNoTab'));
@@ -362,6 +398,32 @@ $('btn-info').addEventListener('click', () => {
 });
 $('btn-info-close').addEventListener('click', () => {
   document.body.classList.remove('info-open');
+});
+
+/** 语言切换：按钮展开菜单；点击选项立即生效并持久化 */
+$('btn-lang').addEventListener('click', (e) => {
+  e.stopPropagation();
+  $('lang-menu').classList.toggle('hidden');
+});
+// 点击面板其它位置时收起语言菜单
+document.addEventListener('click', (e) => {
+  if (!e.target.closest('.lang-box')) $('lang-menu').classList.add('hidden');
+});
+document.querySelectorAll('.lang-item').forEach((btn) => {
+  btn.addEventListener('click', async () => {
+    const lang = btn.dataset.lang;
+    await I18N.setPreferredLocale(lang);
+    i18nLang = lang;
+    i18nMessages = await I18N.loadMessages(lang);
+    document.documentElement.lang = I18N.HTML_LANGS[lang] || lang;
+    applyI18n();
+    render(); // 刷新仪表盘/滑块等动态文案
+    // 释放接管按钮的文本按当前接管状态刷新
+    $('btn-release').textContent = sessionReleased ? t('btnReengage') : t('btnRelease');
+    renderLangMenu();
+    $('lang-menu').classList.add('hidden');
+    showToast(t('langChanged'));
+  });
 });
 
 /**

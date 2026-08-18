@@ -1,0 +1,102 @@
+{
+  "extName": { "message": "Tab Volume 999" },
+  "extDesc": {
+    "message": "각 탭의 볼륨을 독립적으로 조절할 수 있습니다(0%~999%). 패널 안에서 휠을 돌리기만 하면 실시간으로 조절됩니다."
+  },
+  "extDefaultTitle": { "message": "Tab Volume 999 · 클릭 후 휠로 볼륨 조절" },
+
+  "tabDomainDefault": { "message": "현재 탭" },
+  "hintText": { "message": "현재 탭에만 적용 · 휠로 조절" },
+  "gaugeAria": { "message": "볼륨 게이지" },
+  "tagNormal": { "message": "정상 볼륨" },
+  "btnMinusTitle": { "message": "5% 낮추기" },
+  "sliderAria": { "message": "볼륨" },
+  "btnPlusTitle": { "message": "5% 높이기" },
+  "btnMute": { "message": "음소거" },
+  "btnReset": { "message": "100%로 초기화" },
+  "btnInfo": { "message": "사용법 & 설명" },
+  "statusConnecting": { "message": "연결 중…" },
+  "btnRelease": { "message": "해제" },
+  "btnRetry": { "message": "재시도" },
+  "infoTitle": { "message": "사용법" },
+  "infoCloseAria": { "message": "닫기" },
+  "infoOpsTitle": { "message": "조작 방법" },
+  "infoWheelKey": { "message": "<kbd>휠</kbd>" },
+  "infoWheelStep": { "message": "볼륨 ±5%" },
+  "infoHoldKey": { "message": "<kbd>왼쪽 버튼 길게</kbd>＋<kbd>휠</kbd>" },
+  "infoHoldStep": { "message": "볼륨 ±20%" },
+  "infoAboutTitle": { "message": "이 확장 프로그램 정보" },
+  "infoAbout1": {
+    "message": "현재 탭의 볼륨만 조절합니다. 각 탭은 독립적이며 서로 영향을 주지 않습니다."
+  },
+  "infoAbout2": {
+    "message": "탭의 모든 오디오(WebAudio 및 모든 플레이어 포함)를 0%~999%로 조절합니다."
+  },
+  "infoAbout3": {
+    "message": "100%는 게이지와 슬라이더의 <b>중앙</b>입니다. 휠은 ±5%(왼쪽 버튼 길게 누르면 ±20%)."
+  },
+  "infoAbout4": {
+    "message": "약 200%를 넘으면 소리가 현저히 왜곡됩니다(게인 증폭의 물리적 한계)."
+  },
+  "infoAbout5": {
+    "message": "브라우저 내장 페이지(edge://, 스토어, PDF 뷰어 등)는 캡처할 수 없습니다."
+  },
+  "infoAbout6": {
+    "message": "<code>tabCapture</code> 권한이 필요합니다(설치 시 '화면 콘텐츠 캡처'로 표시)."
+  },
+  "infoLatencyTitle": { "message": "오디오 지연" },
+  "infoLatencyNote": {
+    "message": "조절 시 오디오는 '캡처 → 재생' 파이프라인을 거치며 각 단계에서 버퍼링이 발생합니다:"
+  },
+  "infoLatencyPipeline": { "message": "탭 → tabCapture → AudioContext → 스피커" },
+  "infoLatency1": {
+    "message": "합계 약 <b>20~50ms</b>. 동종 확장 프로그램 모두 동일하며 코드 수준에서 없앨 수 없습니다."
+  },
+  "infoLatency2": {
+    "message": "볼륨 100%(또는 '해제' 후)에는 <b>파이프라인을 우회</b>하여 지연 없이 네이티브 재생됩니다."
+  },
+  "tagMuted": { "message": "음소거 중" },
+  "tagZero": { "message": "볼륨 0" },
+  "tagLow": { "message": "낮은 볼륨" },
+  "tagBoost": { "message": "증폭 중 >100%" },
+  "btnUnmute": { "message": "음소거 해제" },
+  "btnReengage": { "message": "다시 연결" },
+  "errNoTab": { "message": "현재 탭을 가져올 수 없습니다" },
+  "statusConnectingTab": { "message": "이 탭의 오디오에 연결 중…" },
+  "statusCaptured": { "message": "오디오를 가져왔습니다" },
+  "errConnect": { "message": "연결에 실패했습니다" },
+  "errCapture": { "message": "캡처에 실패했습니다" },
+  "errNoStream": { "message": "오디오 스트림을 가져올 수 없습니다" },
+  "toastReset": { "message": "100%로 초기화했습니다" },
+  "toastMuted": { "message": "음소거했습니다" },
+  "toastUnmuted": { "message": "소리를 복원했습니다" },
+  "statusReleased": { "message": "해제했습니다 · 네이티브 재생 복귀" },
+  "toastReleased": { "message": "이 탭을 해제했습니다" },
+  "statusRecapturing": { "message": "페이지 이동 · 자동 재연결 중…" },
+  "errPrefix": { "message": "오류: " },
+  "errCapturePrefix": { "message": "오디오를 가져올 수 없습니다: " },
+
+  "errInvalidParams": { "message": "매개변수가 잘못되었습니다" },
+  "errMissingParams": { "message": "매개변수가 잘못되었습니다: tabId 또는 streamId가 없습니다" },
+  "errRecapture": { "message": "다시 연결에 실패했습니다" },
+  "offscreenJustification": {
+    "message": "탭의 캡처된 오디오를 재생하고 Web Audio 게인(0%~999%)을 적용합니다."
+  },
+
+  "errAlreadyCaptured": {
+    "message": "이 탭은 이미 캡처 중(이 확장 프로그램 또는 다른 앱)이라 다시 캡처할 수 없습니다"
+  },
+  "errNotAllowed": {
+    "message": "브라우저가 오디오 캡처를 거부했습니다(권한 설정을 확인하세요)"
+  },
+  "errNotSupported": {
+    "message": "이 브라우저는 이 캡처 방식을 지원하지 않습니다"
+  },
+  "errCaptureFailed": {
+    "message": "탭 오디오를 캡처할 수 없습니다: $1"
+  },
+
+  "langButtonTitle": { "message": "언어 전환" },
+  "langChanged": { "message": "언어가 변경되었습니다" }
+}
+

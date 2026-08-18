@@ -95,5 +95,8 @@
   },
   "errCaptureFailed": {
     "message": "Cannot capture tab audio: $1"
-  }
+  },
+
+  "langButtonTitle": { "message": "Switch language" },
+  "langChanged": { "message": "Language changed" }
 }

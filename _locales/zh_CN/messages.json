@@ -94,6 +94,9 @@
   },
   "errCaptureFailed": {
     "message": "无法捕获标签页音频：$1"
-  }
+  },
+
+  "langButtonTitle": { "message": "切换语言" },
+  "langChanged": { "message": "语言已切换" }
 }
 

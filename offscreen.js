@@ -94,8 +94,8 @@ class TabAudioSession {
 
 /* ------------------------------ 工具函数 ------------------------------ */
 
-/** i18n 取词简写 */
-const t = (key, ...args) => chrome.i18n.getMessage(key, args);
+/** i18n 取词简写：按用户偏好语言（async，返回 Promise） */
+const t = (key, args) => I18N.getText(key, args);
 
 /** 向 background 广播事件（fire-and-forget，不占用响应通道） */
 function notifyBackground(payload) {
@@ -140,7 +140,7 @@ async function handleStart({ tabId }) {
 }
 
 /** 把 getUserMedia 的错误翻译成用户可读的提示 */
-function friendlyCaptureError(err) {
+async function friendlyCaptureError(err) {
   const m = String(err?.message || '');
   const name = String(err?.name || '');
   if (/already|captur/i.test(m)) return t('errAlreadyCaptured');
@@ -173,7 +173,8 @@ async function handleCapture({ tabId, streamId, volume }) {
     stream = await getUserMediaTab(streamId);
   } catch (err) {
     notifyBackground({ event: 'error', tabId, error: String(err?.message || err) });
-    return { ok: false, error: t('errCaptureFailed', [friendlyCaptureError(err)]) };
+    const friendly = await friendlyCaptureError(err);
+    return { ok: false, error: await t('errCaptureFailed', [friendly]) };
   }
 
   // 防止 AudioContext 被自动播放策略挂起

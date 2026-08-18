@@ -1,0 +1,102 @@
+{
+  "extName": { "message": "Tab Volume 999" },
+  "extDesc": {
+    "message": "各タブの音量を独立して調整できます（0%〜999%）。パネル内でホイールを回すだけでリアルタイムに調整できます。"
+  },
+  "extDefaultTitle": { "message": "Tab Volume 999 · クリック後にホイールで音量調整" },
+
+  "tabDomainDefault": { "message": "現在のタブ" },
+  "hintText": { "message": "このタブにのみ影響 · ホイールで調整" },
+  "gaugeAria": { "message": "音量メーター" },
+  "tagNormal": { "message": "標準音量" },
+  "btnMinusTitle": { "message": "5% 下げる" },
+  "sliderAria": { "message": "音量" },
+  "btnPlusTitle": { "message": "5% 上げる" },
+  "btnMute": { "message": "ミュート" },
+  "btnReset": { "message": "100% にリセット" },
+  "btnInfo": { "message": "操作 & 説明" },
+  "statusConnecting": { "message": "接続中…" },
+  "btnRelease": { "message": "解放" },
+  "btnRetry": { "message": "再試行" },
+  "infoTitle": { "message": "操作説明" },
+  "infoCloseAria": { "message": "閉じる" },
+  "infoOpsTitle": { "message": "操作方法" },
+  "infoWheelKey": { "message": "<kbd>ホイール</kbd>" },
+  "infoWheelStep": { "message": "音量 ±5%" },
+  "infoHoldKey": { "message": "<kbd>左ボタン長押し</kbd>＋<kbd>ホイール</kbd>" },
+  "infoHoldStep": { "message": "音量 ±20%" },
+  "infoAboutTitle": { "message": "この拡張機能について" },
+  "infoAbout1": {
+    "message": "現在のタブの音量のみを調整。各タブは独立しており、互いに影響しません。"
+  },
+  "infoAbout2": {
+    "message": "タブのすべての音声（WebAudio・任意のプレイヤー含む）を 0%〜999% で調整できます。"
+  },
+  "infoAbout3": {
+    "message": "100% はメーターとスライダーの<b>中央</b>です。ホイールは ±5%（左ボタン長押しで ±20%）。"
+  },
+  "infoAbout4": {
+    "message": "約200%を超えると音が顕著に歪みます（ゲイン増幅の物理的限界）。"
+  },
+  "infoAbout5": {
+    "message": "ブラウザー内蔵ページ（edge://、ストア、PDFビューアーなど）はキャプチャできません。"
+  },
+  "infoAbout6": {
+    "message": "<code>tabCapture</code> 権限が必要です（インストール時に「画面コンテンツのキャプチャ」と表示）。"
+  },
+  "infoLatencyTitle": { "message": "音声レイテンシー" },
+  "infoLatencyNote": {
+    "message": "調整時、音声は「キャプチャ → 再生」のパイプラインを通過し、各段階でバッファリングが発生します："
+  },
+  "infoLatencyPipeline": { "message": "タブ → tabCapture → AudioContext → スピーカー" },
+  "infoLatency1": {
+    "message": "合計約 <b>20〜50ms</b>。同種の拡張機能すべてに共通し、コード上では解消できません。"
+  },
+  "infoLatency2": {
+    "message": "音量100%（または「解放」後）は<b>パイプラインを迂回</b>し、遅延ゼロでネイティブ再生します。"
+  },
+  "tagMuted": { "message": "ミュート中" },
+  "tagZero": { "message": "音量ゼロ" },
+  "tagLow": { "message": "低音量" },
+  "tagBoost": { "message": "増幅中 >100%" },
+  "btnUnmute": { "message": "ミュート解除" },
+  "btnReengage": { "message": "再接続" },
+  "errNoTab": { "message": "現在のタブを取得できません" },
+  "statusConnectingTab": { "message": "このタブの音声に接続中…" },
+  "statusCaptured": { "message": "音声を取得しました" },
+  "errConnect": { "message": "接続に失敗しました" },
+  "errCapture": { "message": "キャプチャに失敗しました" },
+  "errNoStream": { "message": "音声ストリームを取得できません" },
+  "toastReset": { "message": "100% にリセットしました" },
+  "toastMuted": { "message": "ミュートしました" },
+  "toastUnmuted": { "message": "音声を復元しました" },
+  "statusReleased": { "message": "解放しました · ネイティブ再生に復帰" },
+  "toastReleased": { "message": "このタブを解放しました" },
+  "statusRecapturing": { "message": "ページ遷移 · 自動再接続中…" },
+  "errPrefix": { "message": "エラー：" },
+  "errCapturePrefix": { "message": "音声を取得できません：" },
+
+  "errInvalidParams": { "message": "引数が無効です" },
+  "errMissingParams": { "message": "引数が無効です：tabId または streamId がありません" },
+  "errRecapture": { "message": "再接続に失敗しました" },
+  "offscreenJustification": {
+    "message": "タブのキャプチャ音声を再生し、Web Audio ゲイン（0%〜999%）を適用します。"
+  },
+
+  "errAlreadyCaptured": {
+    "message": "このタブは既にキャプチャ中（本拡張機能または別のアプリ）のため、再キャプチャできません"
+  },
+  "errNotAllowed": {
+    "message": "ブラウザーが音声キャプチャを拒否しました（権限設定をご確認ください）"
+  },
+  "errNotSupported": {
+    "message": "このブラウザーはこのキャプチャ方式をサポートしていません"
+  },
+  "errCaptureFailed": {
+    "message": "タブの音声をキャプチャできません：$1"
+  },
+
+  "langButtonTitle": { "message": "言語を切り替え" },
+  "langChanged": { "message": "言語を変更しました" }
+}
+

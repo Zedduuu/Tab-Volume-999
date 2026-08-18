@@ -11,14 +11,23 @@
   <div id="toast" role="status"></div>
 
   <main id="app">
-    <!-- 顶部：当前标签页信息 -->
+    <!-- 顶部：当前标签页信息 + 语言切换按钮（右上角） -->
     <header>
-      <div class="domain" id="tab-domain">__MSG_tabDomainDefault__</div>
-      <div class="hint">__MSG_hintText__</div>
+      <div class="domain" id="tab-domain" data-i18n="tabDomainDefault"></div>
+      <div class="hint" data-i18n="hintText"></div>
+      <div class="lang-box">
+        <button id="btn-lang" class="lang-btn" type="button" data-i18n-title="langButtonTitle">🌐</button>
+        <div id="lang-menu" class="lang-menu hidden">
+          <button type="button" class="lang-item" data-lang="zh_CN">简体中文</button>
+          <button type="button" class="lang-item" data-lang="en">English</button>
+          <button type="button" class="lang-item" data-lang="ja">日本語</button>
+          <button type="button" class="lang-item" data-lang="ko">한국어</button>
+        </div>
+      </div>
     </header>
 
     <!-- 环形仪表盘 + 百分比大数字 -->
-    <section class="gauge" aria-label="__MSG_gaugeAria__">
+    <section class="gauge" data-i18n-aria="gaugeAria">
       <svg viewBox="0 0 200 200" aria-hidden="true">
         <circle class="gauge-track" cx="100" cy="100" r="84"></circle>
         <circle class="gauge-arc" id="gauge-arc" cx="100" cy="100" r="84"></circle>
@@ -27,30 +36,30 @@
         <div class="gauge-value" id="volume-value">100</div>
         <div class="gauge-unit">%</div>
       </div>
-      <div class="gauge-tag" id="volume-tag">__MSG_tagNormal__</div>
+      <div class="gauge-tag" id="volume-tag" data-i18n="tagNormal"></div>
     </section>
 
     <!-- 滑块 + 步进按钮 -->
     <section class="controls">
-      <button id="btn-minus" type="button" title="__MSG_btnMinusTitle__">−</button>
-      <input id="slider" type="range" min="0" max="1000" step="1" value="500" aria-label="__MSG_sliderAria__">
-      <button id="btn-plus" type="button" title="__MSG_btnPlusTitle__">＋</button>
+      <button id="btn-minus" type="button" data-i18n-title="btnMinusTitle">−</button>
+      <input id="slider" type="range" min="0" max="1000" step="1" value="500" data-i18n-aria="sliderAria">
+      <button id="btn-plus" type="button" data-i18n-title="btnPlusTitle">＋</button>
     </section>
     <div class="slider-labels"><span>0%</span><span>100%</span><span>999%</span></div>
 
     <!-- 操作按钮 -->
     <section class="actions">
-      <button id="btn-mute" type="button" class="action-btn">__MSG_btnMute__</button>
-      <button id="btn-reset" type="button" class="action-btn">__MSG_btnReset__</button>
+      <button id="btn-mute" type="button" class="action-btn" data-i18n="btnMute"></button>
+      <button id="btn-reset" type="button" class="action-btn" data-i18n="btnReset"></button>
     </section>
 
     <!-- 状态栏 + 说明按钮 -->
     <footer>
-      <button id="btn-info" class="info-btn" type="button">__MSG_btnInfo__</button>
-      <div id="status" class="status status-idle">__MSG_statusConnecting__</div>
+      <button id="btn-info" class="info-btn" type="button" data-i18n="btnInfo"></button>
+      <div id="status" class="status status-idle" data-i18n="statusConnecting"></div>
       <div class="footer-actions">
-        <button id="btn-release" class="release-btn" type="button">__MSG_btnRelease__</button>
-        <button id="btn-retry" class="retry-btn hidden" type="button">__MSG_btnRetry__</button>
+        <button id="btn-release" class="release-btn" type="button" data-i18n="btnRelease"></button>
+        <button id="btn-retry" class="retry-btn hidden" type="button" data-i18n="btnRetry"></button>
       </div>
     </footer>
   </main>
@@ -59,44 +68,43 @@
   <aside id="info-panel" class="info-panel" aria-hidden="true">
     <div class="info-panel-inner">
       <header class="info-panel-header">
-        <span>__MSG_infoTitle__</span>
-        <button id="btn-info-close" class="info-close" type="button" aria-label="__MSG_infoCloseAria__">✕</button>
+        <span data-i18n="infoTitle"></span>
+        <button id="btn-info-close" class="info-close" type="button" data-i18n-aria="infoCloseAria">✕</button>
       </header>
 
       <section class="info-section">
-        <h3>__MSG_infoOpsTitle__</h3>
+        <h3 data-i18n="infoOpsTitle"></h3>
         <div class="info-grid">
-          <div class="info-row"><span class="info-keys">__MSG_infoWheelKey__</span><span>__MSG_infoWheelStep__</span></div>
-          <div class="info-row"><span class="info-keys">__MSG_infoHoldKey__</span><span>__MSG_infoHoldStep__</span></div>
+          <div class="info-row"><span class="info-keys" data-i18n="infoWheelKey"></span><span data-i18n="infoWheelStep"></span></div>
+          <div class="info-row"><span class="info-keys" data-i18n="infoHoldKey"></span><span data-i18n="infoHoldStep"></span></div>
         </div>
       </section>
 
       <section class="info-section">
-        <h3>__MSG_infoAboutTitle__</h3>
+        <h3 data-i18n="infoAboutTitle"></h3>
         <ul class="info-list">
-          <li>__MSG_infoAbout1__</li>
-          <li>__MSG_infoAbout2__</li>
-          <li>__MSG_infoAbout3__</li>
-          <li>__MSG_infoAbout4__</li>
-          <li>__MSG_infoAbout5__</li>
-          <li>__MSG_infoAbout6__</li>
+          <li data-i18n="infoAbout1"></li>
+          <li data-i18n="infoAbout2"></li>
+          <li data-i18n="infoAbout3"></li>
+          <li data-i18n="infoAbout4"></li>
+          <li data-i18n="infoAbout5"></li>
+          <li data-i18n="infoAbout6"></li>
         </ul>
       </section>
 
       <section class="info-section">
-        <h3>__MSG_infoLatencyTitle__</h3>
-        <p class="info-note">
-          __MSG_infoLatencyNote__
-        </p>
-        <p class="info-note mono">__MSG_infoLatencyPipeline__</p>
+        <h3 data-i18n="infoLatencyTitle"></h3>
+        <p class="info-note" data-i18n="infoLatencyNote"></p>
+        <p class="info-note mono" data-i18n="infoLatencyPipeline"></p>
         <ul class="info-list">
-          <li>__MSG_infoLatency1__</li>
-          <li>__MSG_infoLatency2__</li>
+          <li data-i18n="infoLatency1"></li>
+          <li data-i18n="infoLatency2"></li>
         </ul>
       </section>
     </div>
   </aside>
 
+  <script src="i18n-util.js"></script>
   <script src="popup.js"></script>
 </body>
 </html>
