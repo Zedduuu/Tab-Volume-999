@@ -21,4 +21,4 @@
 
 ## 联系我们
 
-如有隐私相关问题，请通过本项目的 [GitHub Issues](https://github.com/Zedduuu/tab-volume-999/issues) 联系。
+如有隐私相关问题，请通过本项目的 [GitHub Issues](https://github.com/Zedduuu/Tab-Volume-999/issues) 联系。
