@@ -1,7 +1,7 @@
 {
   "extName": { "message": "Tab Volume 999" },
   "extDesc": {
-    "message": "Adjust the volume of each browser tab independently, from 0% up to 999%. Scroll the wheel inside the panel to control in real time."
+    "message": "Adjust each tab's volume independently, up to 999%. Scroll the wheel to adjust. Open source, free, no ads."
   },
   "extDefaultTitle": { "message": "Tab Volume 999 · Click, then scroll to adjust volume" },
 

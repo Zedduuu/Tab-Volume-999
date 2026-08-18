@@ -233,7 +233,7 @@ popup ── chrome.runtime.sendMessage ──▶ background ──▶ offscreen
 
 **隐私**：本扩展**不收集任何用户数据**，详见 [PRIVACY.md](PRIVACY.md)。
 
-**商店上架**：Microsoft Edge 扩展商店（Partner Center 提交），版本 1.0.3。
+**商店上架**：Microsoft Edge 扩展商店（Partner Center 提交），版本 1.0.4。
 
 
 
