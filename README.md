@@ -22,7 +22,7 @@
 
 1. 打开 Edge 地址栏输入 `edge://extensions/` 并回车；
 2. 打开左上角「**开发人员模式**」开关；
-3. 点击「**加载解压缩的扩展**」，选择本项目目录 `tab-volume`；
+3. 点击「**加载解压缩的扩展**」，选择本项目目录 `tab-volume-999`；
 4. 在工具栏把本扩展「固定」到图标区，方便随时点开。
 
 > 安装时 Edge 会提示权限「**捕获屏幕内容**」——这是 `tabCapture` 权限的固定提示，
@@ -166,7 +166,7 @@ popup（用户手势）
 ### ⚙️ 架构与文件职责
 
 ```text
-tab-volume/
+tab-volume-999/
 ├─ manifest.json          # MV3 清单（权限：tabCapture / offscreen / storage / activeTab）
 ├─ background.js          # 后台：消息路由、离屏生命周期、状态持久化、接管/释放、断线重捕
 ├─ offscreen.html         # 离屏文档入口（不可见，真正发声的页面）
@@ -192,7 +192,7 @@ popup ── chrome.runtime.sendMessage ──▶ background ──▶ offscreen
 
 ### 🚀 本地构建与测试
 
-1. **加载扩展**：`edge://extensions` → 开发人员模式 → 「加载解压缩的扩展」→ 选择 `tab-volume` 目录；
+1. **加载扩展**：`edge://extensions` → 开发人员模式 → 「加载解压缩的扩展」→ 选择 `tab-volume-999` 目录；
 2. **改动后刷新**：改完代码回到 `edge://extensions` 点该扩展的「↻ 重新加载」再测试；
 3. **重新生成图标**（可选，会覆盖 `icons/` 下的 png）：
    ```powershell
