@@ -87,7 +87,7 @@ class TabAudioSession {
 
     if (!keepMuted) {
       // 还原到接管前的静音状态（避免把用户手动静音的标签页误开启）
-      try { await chrome.tabCapture.setMuted(this.tabId, this.priorMuted); } catch { /* 忽略 */ }
+      safeSetMuted(this.tabId, this.priorMuted);
     }
   }
 }
@@ -96,6 +96,25 @@ class TabAudioSession {
 
 /** i18n 取词简写：按用户偏好语言（async，返回 Promise） */
 const t = (key, args) => I18N.getText(key, args);
+
+/** 安全设置静音：callback 消费 lastError，避免“Unchecked runtime.lastError” */
+function safeSetMuted(tabId, muted) {
+  try {
+    chrome.tabCapture.setMuted(tabId, muted, () => void chrome.runtime.lastError);
+  } catch { /* 同步异常忽略 */ }
+}
+
+/** 安全读取静音状态：Promise 返回结果并消费 lastError */
+function safeGetMuted(tabId) {
+  return new Promise((resolve) => {
+    try {
+      chrome.tabCapture.getMuted(tabId, (muted) => {
+        void chrome.runtime.lastError;
+        resolve(Boolean(muted));
+      });
+    } catch { resolve(false); }
+  });
+}
 
 /** 向 background 广播事件（fire-and-forget，不占用响应通道） */
 function notifyBackground(payload) {
@@ -164,8 +183,7 @@ async function handleCapture({ tabId, streamId, volume }) {
   }
 
   // 读取接管前的静音状态，以便停止时还原
-  let priorMuted = false;
-  try { priorMuted = await chrome.tabCapture.getMuted(tabId); } catch { /* 忽略 */ }
+  const priorMuted = await safeGetMuted(tabId);
 
   // 用 streamId 换取标签页音频流
   let stream;
@@ -187,7 +205,7 @@ async function handleCapture({ tabId, streamId, volume }) {
   sessions.set(tabId, session);
 
   // 静音原标签页，否则会同时听到原生声音 + 本扩展回放（双重声音）
-  try { await chrome.tabCapture.setMuted(tabId, true); } catch { /* 忽略 */ }
+  safeSetMuted(tabId, true);
 
   notifyBackground({ event: 'started', tabId });
   return { ok: true };
@@ -233,7 +251,7 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
 /** 离屏文档被销毁（如浏览器退出）前，尽量解除各标签页静音 */
 self.addEventListener('pagehide', () => {
   for (const session of sessions.values()) {
-    try { chrome.tabCapture.setMuted(session.tabId, session.priorMuted); } catch { /* 忽略 */ }
+    safeSetMuted(session.tabId, session.priorMuted);
   }
   sessions.clear();
   try { audioCtx.close(); } catch { /* 忽略 */ }

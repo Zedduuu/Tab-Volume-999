@@ -230,9 +230,16 @@ async function ensureOffscreenDocument() {
   }
 }
 
+/** 安全设置静音：传 callback 消费 lastError，避免“Unchecked runtime.lastError”（兼容 callback / promise 两种实现） */
+function safeSetMuted(tabId, muted) {
+  try {
+    chrome.tabCapture.setMuted(tabId, muted, () => void chrome.runtime.lastError);
+  } catch { /* 同步异常忽略 */ }
+}
+
 /** 解除标签页静音（仅在确认是扩展静音时才调用） */
 async function unmuteTab(tabId) {
-  try { await chrome.tabCapture.setMuted(tabId, false); } catch { /* 标签页可能已关闭 */ }
+  safeSetMuted(tabId, false);
 }
 
 /* --------------------------- 各消息的处理函数 --------------------------- */
