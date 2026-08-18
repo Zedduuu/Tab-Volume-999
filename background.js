@@ -161,13 +161,13 @@ async function buildIconImageData(overlay) {
 /** 把文本绘制到图标右下角并应用 */
 async function renderBadgeText(tabId, text, color) {
   const imageData = await buildIconImageData({ text, color });
-  await chrome.action.setIcon({ tabId, imageData }).catch(() => {});
+  safeSetIcon(tabId, imageData);
 }
 
 /** 把标签页图标恢复为“无数字”基础样式 */
 async function resetIcon(tabId) {
   const imageData = await buildIconImageData(null);
-  await chrome.action.setIcon({ tabId, imageData }).catch(() => {});
+  safeSetIcon(tabId, imageData);
 }
 
 /** 徽标重绘去抖：滚轮连续调音量时合并为一次绘制 */
@@ -234,6 +234,20 @@ async function ensureOffscreenDocument() {
 function safeSetMuted(tabId, muted) {
   try {
     chrome.tabCapture.setMuted(tabId, muted, () => void chrome.runtime.lastError);
+  } catch { /* 同步异常忽略 */ }
+}
+
+/** 安全设置图标：callback 消费 lastError，避免“Unchecked runtime.lastError” */
+function safeSetIcon(tabId, imageData) {
+  try {
+    chrome.action.setIcon({ tabId, imageData }, () => void chrome.runtime.lastError);
+  } catch { /* 同步异常忽略 */ }
+}
+
+/** 安全设置徽标文本：callback 消费 lastError */
+function safeSetBadgeText(tabId, text) {
+  try {
+    chrome.action.setBadgeText({ tabId, text }, () => void chrome.runtime.lastError);
   } catch { /* 同步异常忽略 */ }
 }
 
@@ -445,9 +459,12 @@ chrome.runtime.onStartup.addListener(async () => {
   const tabIds = Object.keys(sessions).map(Number);
   await chrome.storage.local.remove(STORAGE_KEY);
   for (const tabId of tabIds) {
+    // 浏览器重启后旧标签页 ID 已全部失效：先确认标签页仍存在再处理，避免 No tab with id
+    const tab = await chrome.tabs.get(tabId).catch(() => null);
+    if (!tab) continue;
     await unmuteTab(tabId);
     // 图标恢复为基础样式，并清掉旧版徽标文本残留
     await updateBadge(tabId, null);
-    await chrome.action.setBadgeText({ tabId, text: '' }).catch(() => {});
+    safeSetBadgeText(tabId, '');
   }
 });
