@@ -473,6 +473,10 @@ async function recaptureTab(tabId, attempt) {
  * 恢复播放时本监听触发重捕，音量回到用户设置值而不是原生音量。
  */
 chrome.tabs.onUpdated.addListener((tabId, changeInfo) => {
+  // 记录标签页静音状态变化（调试用：确认静音何时/为何被解除）
+  if (changeInfo.mutedInfo) {
+    console.log('[bg] 标签页静音变化：tabId =', tabId, ', muted =', changeInfo.mutedInfo.muted, ', reason =', changeInfo.mutedInfo.reason);
+  }
   if (!waitingRecapture.has(tabId)) return;
   console.log('[bg] onUpdated 触发等待重捕：tabId =', tabId, ', audible =', changeInfo.audible, ', status =', changeInfo.status);
   // audible=true = 标签页开始出声；status=complete = 页面加载完成（导航场景兜底）

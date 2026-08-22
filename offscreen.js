@@ -24,6 +24,15 @@ const VOLUME = { MIN: 0, MAX: 999, DEFAULT: 100 };
 /** 全局共享的 AudioContext：所有标签页会话共用，比每会话一个更省电 */
 const audioCtx = new AudioContext();
 
+// 监听 AudioContext 状态变化（标签页切后台/窗口节流可能导致挂起）
+audioCtx.onstatechange = () => {
+  console.log('[offscreen] AudioContext 状态 →', audioCtx.state, ', currentTime =', audioCtx.currentTime.toFixed(2));
+  if (audioCtx.state === 'suspended') {
+    console.log('[offscreen] AudioContext 被挂起，尝试自动恢复');
+    audioCtx.resume().catch((e) => console.error('[offscreen] resume 失败:', e?.message || e));
+  }
+};
+
 /** 正在播放中的会话表：tabId -> TabAudioSession */
 const sessions = new Map();
 
@@ -62,6 +71,7 @@ class TabAudioSession {
   setVolume(volume) {
     const target = Math.min(VOLUME.MAX, Math.max(VOLUME.MIN, volume)) / 100;
     this.gainNode.gain.setTargetAtTime(target, audioCtx.currentTime, 0.02);
+    console.log('[offscreen] setVolume：tabId =', this.tabId, ', gain →', target);
   }
 
   /** 捕获流被系统中断（页面跳转等）时的回调 */
@@ -221,6 +231,8 @@ async function handleCapture({ tabId, streamId, volume }) {
   // 静音原标签页，否则会同时听到原生声音 + 本扩展回放（双重声音）
   safeSetMuted(tabId, true);
   console.log('[offscreen] 会话创建成功：tabId =', tabId, ', 已静音原标签页');
+  const verifyMuted = await safeGetMuted(tabId);
+  console.log('[offscreen] 静音验证：tabId =', tabId, ', muted =', verifyMuted);
 
   notifyBackground({ event: 'started', tabId });
   return { ok: true };
@@ -231,6 +243,7 @@ async function handleSetVolume({ tabId, volume }) {
   const session = sessions.get(tabId);
   if (!session) return { ok: true, applied: false }; // 会话不存在（可能刚跳转），状态已由后台存好
   session.setVolume(volume);
+  console.log('[offscreen] handleSetVolume：tabId =', tabId, ', volume =', volume);
   return { ok: true, applied: true };
 }
 
