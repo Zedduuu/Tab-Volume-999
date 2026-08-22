@@ -39,6 +39,7 @@ const MSG = {
   OFFSCREEN_CAPTURE: 'offscreen:capture', // background → offscreen：新建捕获
   OFFSCREEN_SET_VOLUME: 'offscreen:setVolume',
   OFFSCREEN_STOP: 'offscreen:stop',
+  OFFSCREEN_ACTIVATE: 'offscreen:activate',
   OFFSCREEN_EVENT: 'offscreen:event',
 };
 
@@ -343,6 +344,9 @@ async function unmuteTab(tabId) {
 async function handleStart({ tabId }) {
   if (typeof tabId !== 'number') return { ok: false, error: await t('errInvalidParams') };
   await ensureOffscreenDocument();
+  // 当前处于用户手势上下文（点击扩展图标）：激活离屏音频输出，
+  // 解除自动播放策略对 <audio>/AudioContext 的抑制。
+  sendToOffscreen({ type: MSG.OFFSCREEN_ACTIVATE }).catch(() => {});
   const resp = await sendToOffscreen({ type: MSG.OFFSCREEN_START, tabId });
   if (resp?.alreadyActive) {
     // 会话已存在：恢复该标签页的徽标数字

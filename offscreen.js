@@ -16,6 +16,7 @@ const MSG = {
   OFFSCREEN_CAPTURE: 'offscreen:capture',
   OFFSCREEN_SET_VOLUME: 'offscreen:setVolume',
   OFFSCREEN_STOP: 'offscreen:stop',
+  OFFSCREEN_ACTIVATE: 'offscreen:activate',
   OFFSCREEN_EVENT: 'offscreen:event',
 };
 
@@ -60,8 +61,8 @@ class TabAudioSession {
     this.audioEl = new Audio();
     this.audioEl.srcObject = this.destNode.stream;
     this.audioEl.play()
-      .then(() => console.log('[offscreen] audio 元素开始播放：tabId =', this.tabId))
-      .catch((e) => console.error('[offscreen] audio 元素播放失败：tabId =', this.tabId, ', 原因 =', e?.message || e));
+      .then(() => notifyBackground({ event: 'debug', tabId, msg: 'audio 元素开始播放' }))
+      .catch((e) => notifyBackground({ event: 'debug', tabId, msg: `audio 元素播放失败：${e?.message || e}` }));
 
     // 页面刷新 / 跳转 / 标签页关闭时，浏览器会结束该捕获流
     this.endedHandler = () => this.handleStreamEnded();
@@ -232,6 +233,26 @@ async function handleSetVolume({ tabId, volume }) {
   return { ok: true, applied: true };
 }
 
+/**
+ * background 请求：在用户手势上下文中激活所有会话的音频输出。
+ * 自动播放策略：无手势时 <audio> 元素 / AudioContext 输出会被抑制，
+ * 用户点开扩展图标（手势）时调用本函数，让声音恢复。
+ */
+async function handleActivate() {
+  console.log('[offscreen] 收到激活指令，当前会话数 =', sessions.size, ', ctxState =', audioCtx.state);
+  if (audioCtx.state === 'suspended') {
+    try { await audioCtx.resume(); } catch { /* 忽略 */ }
+  }
+  for (const session of sessions.values()) {
+    if (session.audioEl) {
+      session.audioEl.play()
+        .then(() => notifyBackground({ event: 'debug', tabId: session.tabId, msg: '激活：audio 元素开始播放' }))
+        .catch((e) => notifyBackground({ event: 'debug', tabId: session.tabId, msg: `激活：audio 元素播放失败：${e?.message || e}` }));
+    }
+  }
+  return { ok: true };
+}
+
 /** background 请求：停止接管 */
 async function handleStop({ tabId }) {
   const session = sessions.get(tabId);
@@ -250,6 +271,7 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     [MSG.OFFSCREEN_CAPTURE]: handleCapture,
     [MSG.OFFSCREEN_SET_VOLUME]: handleSetVolume,
     [MSG.OFFSCREEN_STOP]: handleStop,
+    [MSG.OFFSCREEN_ACTIVATE]: handleActivate,
   }[message.type];
   if (!handler) return false;
 
