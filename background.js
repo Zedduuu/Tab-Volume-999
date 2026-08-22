@@ -450,6 +450,7 @@ async function recaptureTab(tabId, attempt) {
     console.log('[bg] 重捕成功：tabId =', tabId, ', volume =', state.volume);
   } catch (err) {
     console.warn('[bg] 重捕失败：tabId =', tabId, ', attempt =', attempt, ', error =', err?.message);
+    if (attempt < RECAPTURE.MAX_ATTEMPTS) {
       recaptureTimers[tabId] = setTimeout(() => recaptureTab(tabId, attempt + 1), RECAPTURE.DELAY_MS);
     } else {
       // 多次失败：标签页多半已暂停/无音频，浏览器拒绝提供捕获流。
