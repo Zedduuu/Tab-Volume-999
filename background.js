@@ -254,7 +254,11 @@ async function ensureOffscreenDocument() {
     try {
       await chrome.offscreen.createDocument({
         url: OFFSCREEN_URL,
-        reasons: ['AUDIO_PLAYBACK'],
+        // 注意：不能用 AUDIO_PLAYBACK reason —— 官方文档明确 AUDIO_PLAYBACK 会在
+        // 「30 秒无音频播放」后自动关闭 offscreen，导致暂停视频→切走→会话丢失→
+        // 回来无法重捕（tabCapture 需要用户手势）。USER_MEDIA 等其他 reason 无生命周期限制，
+        // offscreen 常驻，会话在暂停/切走期间保持存活，音量无需重捕即可保持。
+        reasons: ['USER_MEDIA'],
         justification: await t('offscreenJustification'),
       });
     } catch (err) {
