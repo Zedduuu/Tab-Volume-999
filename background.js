@@ -254,19 +254,25 @@ async function ensureOffscreenDocument() {
   }
 }
 
-/** 安全设置静音（background 上下文，tabCapture 可用）：返回是否成功 */
+/** 安全设置静音：优先 chrome.tabCapture.setMuted；Edge 未实现时回退 chrome.tabs.update({muted}) */
 function safeSetMuted(tabId, muted) {
   return new Promise((resolve) => {
     try {
-      chrome.tabCapture.setMuted(tabId, muted, () => {
-        if (chrome.runtime.lastError) {
-          console.error('[bg] setMuted(', muted, ') 失败：tabId =', tabId, ', 原因 =', chrome.runtime.lastError.message);
+      const done = (err) => {
+        if (err) {
+          console.error('[bg] setMuted(', muted, ') 失败：tabId =', tabId, ', 原因 =', err);
           resolve(false);
         } else {
           console.log('[bg] setMuted(', muted, ') 成功：tabId =', tabId);
           resolve(true);
         }
-      });
+      };
+      if (typeof chrome.tabCapture?.setMuted === 'function') {
+        chrome.tabCapture.setMuted(tabId, muted, () => done(chrome.runtime.lastError?.message));
+      } else {
+        // Edge 的 tabCapture 未实现 setMuted（实测 is not a function），改用 tabs API
+        chrome.tabs.update(tabId, { muted }, () => done(chrome.runtime.lastError?.message));
+      }
     } catch (e) {
       console.error('[bg] setMuted 同步异常：', e?.message || e);
       resolve(false);
@@ -274,14 +280,21 @@ function safeSetMuted(tabId, muted) {
   });
 }
 
-/** 安全读取静音状态：返回 Promise 并消费 lastError */
+/** 安全读取静音状态：优先 tabCapture.getMuted；未实现时用 tabs.get 的 mutedInfo */
 function safeGetMuted(tabId) {
   return new Promise((resolve) => {
     try {
-      chrome.tabCapture.getMuted(tabId, (muted) => {
-        void chrome.runtime.lastError;
-        resolve(Boolean(muted));
-      });
+      if (typeof chrome.tabCapture?.getMuted === 'function') {
+        chrome.tabCapture.getMuted(tabId, (muted) => {
+          void chrome.runtime.lastError;
+          resolve(Boolean(muted));
+        });
+      } else {
+        chrome.tabs.get(tabId, (tab) => {
+          void chrome.runtime.lastError;
+          resolve(Boolean(tab?.mutedInfo?.muted));
+        });
+      }
     } catch { resolve(false); }
   });
 }
