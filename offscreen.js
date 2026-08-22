@@ -279,7 +279,9 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
 /** 离屏文档被销毁（如浏览器退出）前，尽量解除各标签页静音 */
 self.addEventListener('pagehide', () => {
   for (const session of sessions.values()) {
-    safeSetMuted(session.tabId, session.priorMuted);
+    // 关键：保持标签页静音，不要解除——offscreen 常被浏览器空闲回收，
+    // 一旦解除静音，标签页就会漏出原生音量；后台会自动重建文档并恢复接管。
+    safeSetMuted(session.tabId, true);
   }
   sessions.clear();
   try { audioCtx.close(); } catch { /* 忽略 */ }

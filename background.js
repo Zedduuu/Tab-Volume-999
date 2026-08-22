@@ -454,12 +454,14 @@ async function recaptureTab(tabId, attempt) {
       recaptureTimers[tabId] = setTimeout(() => recaptureTab(tabId, attempt + 1), RECAPTURE.DELAY_MS);
     } else {
       // 多次失败：标签页多半已暂停/无音频，浏览器拒绝提供捕获流。
-      // 解除静音恢复原生播放（暂停时本来无声，用户无感知），
-      // 并进入「等待恢复」：audible 快速路径 + 兜底定时重试双保险，
-      // 保证标签页一恢复出声，音量就自动回到用户设置值而不是永远停在原生。
-      await unmuteTab(tabId);
+      // 按 audible 决定：暂停中保持静音（避免漏出原生音量）；
+      // 若在播放仍失败则解除静音，至少让用户能听到原生声音。
+      const tabNow = await chrome.tabs.get(tabId).catch(() => null);
+      if (tabNow?.audible) {
+        await unmuteTab(tabId);
+      }
       await updateBadge(tabId, null);
-      console.warn('[bg] 进入等待恢复：tabId =', tabId);
+      console.warn('[bg] 进入等待恢复：tabId =', tabId, ', audible =', Boolean(tabNow?.audible));
       enterWaiting(tabId);
     }
   }
@@ -493,6 +495,64 @@ chrome.tabs.onRemoved.addListener((tabId) => {
   stopWaiting(tabId);
   sendToOffscreen({ type: MSG.OFFSCREEN_STOP, tabId }).catch(() => {});
   clearSession(tabId);
+});
+
+/* --------------- 离屏文档被回收后的会话恢复（自动重建接管） --------------- */
+
+let aliveCheckRunning = false;
+
+/**
+ * 检查并恢复所有有音量设置的标签页的接管。
+ * 离屏文档常被浏览器空闲回收（此时标签页静音由 offscreen 的 pagehide 保持），
+ * 在用户切回浏览器窗口 / 切换标签页时调用：重建离屏文档并重新接管，
+ * 音量自动回到用户设置值，无需手动打开面板。
+ */
+async function ensureSessionsAlive() {
+  if (aliveCheckRunning) return;
+  aliveCheckRunning = true;
+  try {
+    const sessions = await loadSessions();
+    const tabIds = Object.keys(sessions).map(Number);
+    if (!tabIds.length) return;
+
+    // 1) 离屏文档是否存活
+    let alive = false;
+    try {
+      const contexts = await chrome.runtime.getContexts({ contextTypes: ['OFFSCREEN_DOCUMENT'] });
+      alive = contexts.some((c) => c.documentUrl?.includes('offscreen.html'));
+    } catch { alive = false; }
+
+    if (!alive) {
+      console.warn('[bg] 离屏文档不存在，重建并恢复接管');
+      await ensureOffscreenDocument().catch(() => {});
+      for (const tabId of tabIds) {
+        await recaptureTab(tabId, 1).catch(() => {});
+      }
+      return;
+    }
+
+    // 2) 离屏文档存活：逐个探测，恢复缺失的会话
+    for (const tabId of tabIds) {
+      const resp = await sendToOffscreen({ type: MSG.OFFSCREEN_START, tabId }).catch(() => ({ ok: false }));
+      if (!resp?.ok || !resp?.alreadyActive) {
+        console.log('[bg] 会话缺失，重新接管：tabId =', tabId);
+        await recaptureTab(tabId, 1).catch(() => {});
+      }
+    }
+  } finally {
+    aliveCheckRunning = false;
+  }
+}
+
+/** 浏览器窗口重新获得焦点（用户从其它应用切回）→ 检查会话存活 */
+chrome.windows.onFocusChanged.addListener((windowId) => {
+  if (windowId === chrome.windows.WINDOW_ID_NONE) return;
+  ensureSessionsAlive().catch(() => {});
+});
+
+/** 切换到某个标签页 → 检查会话存活 */
+chrome.tabs.onActivated.addListener(() => {
+  ensureSessionsAlive().catch(() => {});
 });
 
 /* ------------------------------ 消息入口 ------------------------------ */
