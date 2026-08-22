@@ -218,6 +218,12 @@ async function handleCapture({ tabId, streamId, volume }) {
     const friendly = await friendlyCaptureError(err);
     return { ok: false, error: await t('errCaptureFailed', [friendly]) };
   }
+  // 调试上报：流是否真的有音频轨且 active
+  notifyBackground({
+    event: 'debug',
+    tabId,
+    msg: `getUserMedia 成功，audioTracks=${stream.getAudioTracks().length}, active=${stream.active}`,
+  });
 
   // 防止 AudioContext 被自动播放策略挂起
   if (audioCtx.state === 'suspended') {
@@ -233,6 +239,11 @@ async function handleCapture({ tabId, streamId, volume }) {
   console.log('[offscreen] 会话创建成功：tabId =', tabId, ', 已静音原标签页');
   const verifyMuted = await safeGetMuted(tabId);
   console.log('[offscreen] 静音验证：tabId =', tabId, ', muted =', verifyMuted);
+  notifyBackground({
+    event: 'debug',
+    tabId,
+    msg: `会话建立，静音验证 muted=${verifyMuted}, audioCtx.state=${audioCtx.state}`,
+  });
 
   notifyBackground({ event: 'started', tabId });
   return { ok: true };

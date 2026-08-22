@@ -389,9 +389,9 @@ async function handleSetVolume({ tabId, volume, muted }) {
   return { ok: true, state: next };
 }
 
-/** 离屏文档上报的事件（started / ended / error） */
-async function handleOffscreenEvent({ tabId, event, error }) {
-  console.log('[bg] offscreen 事件：', event, ', tabId =', tabId, error ? `, error = ${error}` : '');
+/** 离屏文档上报的事件（started / ended / error / debug） */
+async function handleOffscreenEvent({ tabId, event, error, msg }) {
+  console.log('[bg] offscreen 事件：', event, ', tabId =', tabId, error ? `, error = ${error}` : '', msg ? `, 详情 = ${msg}` : '');
   switch (event) {
     case 'ended':
       // 音频流被系统切断（页面刷新 / 跳转 / 关闭）→ 稍作延迟后尝试重新接管
