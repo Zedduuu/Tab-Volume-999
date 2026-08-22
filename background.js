@@ -235,23 +235,37 @@ async function sendToOffscreen(message, retries = 8, delayMs = 150) {
   throw lastError;
 }
 
-/** 确保离屏文档存在（扩展全局最多允许创建一份） */
-async function ensureOffscreenDocument() {
-  // 新版浏览器可用 getContexts 查询；旧版无此 API 时直接尝试创建
-  try {
-    const contexts = await chrome.runtime.getContexts({ contextTypes: ['OFFSCREEN_DOCUMENT'] });
-    if (contexts.length > 0) return;
-  } catch { /* 忽略，走直接创建 */ }
+/** 离屏文档唯一标识：背景并发检测多个文档用 */
+let offscreenDocId = null;
+let ensureDocPromise = null;
 
+/** 确保离屏文档存在（并发安全：同一时刻只允许一次创建流程） */
+async function ensureOffscreenDocument() {
+  if (ensureDocPromise) return ensureDocPromise;
+  ensureDocPromise = (async () => {
+    try {
+      const contexts = await chrome.runtime.getContexts({ contextTypes: ['OFFSCREEN_DOCUMENT'] });
+      if (contexts.length > 0) {
+        offscreenDocId = contexts[0].documentUrl?.split('/').pop() || 'unknown';
+        return;
+      }
+    } catch { /* 忽略，走直接创建 */ }
+
+    try {
+      await chrome.offscreen.createDocument({
+        url: OFFSCREEN_URL,
+        reasons: ['AUDIO_PLAYBACK'],
+        justification: await t('offscreenJustification'),
+      });
+    } catch (err) {
+      // 并发创建时可能出现“已存在”，属正常，放行即可
+      if (!/only a single|already|exist/i.test(String(err.message))) throw err;
+    }
+  })();
   try {
-    await chrome.offscreen.createDocument({
-      url: OFFSCREEN_URL,
-      reasons: ['AUDIO_PLAYBACK'],
-      justification: await t('offscreenJustification'),
-    });
-  } catch (err) {
-    // 并发创建时可能出现“已存在”，属正常，放行即可
-    if (!/only a single|already|exist/i.test(String(err.message))) throw err;
+    return await ensureDocPromise;
+  } finally {
+    ensureDocPromise = null;
   }
 }
 
@@ -453,8 +467,8 @@ async function handleSetVolume({ tabId, volume, muted }) {
 }
 
 /** 离屏文档上报的事件（started / ended / error / debug） */
-async function handleOffscreenEvent({ tabId, event, error, msg }) {
-  console.log('[bg] offscreen 事件：', event, ', tabId =', tabId, error ? `, error = ${error}` : '', msg ? `, 详情 = ${msg}` : '');
+async function handleOffscreenEvent({ tabId, event, error, msg, docId }) {
+  console.log(`[bg] offscreen 事件：${event}, tabId = ${tabId}, docId = ${docId || '?'}`, error ? `, error = ${error}` : '', msg ? `, 详情 = ${msg}` : '');
   switch (event) {
     case 'ended':
       // 音频流被系统切断（页面刷新 / 跳转 / 关闭）→ 稍作延迟后尝试重新接管

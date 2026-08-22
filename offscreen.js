@@ -22,12 +22,16 @@ const MSG = {
 
 const VOLUME = { MIN: 0, MAX: 999, DEFAULT: 100 };
 
+/** 离屏文档唯一标识：用于排查是否存在多个 offscreen 文档（Edge 可能残留） */
+const DOC_ID = Math.random().toString(36).slice(2, 8);
+
 /** 全局共享的 AudioContext：所有标签页会话共用，比每会话一个更省电 */
 const audioCtx = new AudioContext();
 
 // 监听 AudioContext 状态变化（标签页切后台/窗口节流可能导致挂起）
 audioCtx.onstatechange = () => {
-  console.log('[offscreen] AudioContext 状态 →', audioCtx.state, ', currentTime =', audioCtx.currentTime.toFixed(2));
+  console.log(`[offscreen][${DOC_ID}] AudioContext 状态 →`, audioCtx.state, ', currentTime =', audioCtx.currentTime.toFixed(2));
+  notifyBackground({ event: 'debug', tabId: 0, msg: `[${DOC_ID}] ctxState=${audioCtx.state}, currentTime=${audioCtx.currentTime.toFixed(2)}` });
   if (audioCtx.state === 'suspended') {
     console.log('[offscreen] AudioContext 被挂起，尝试自动恢复');
     audioCtx.resume().catch((e) => console.error('[offscreen] resume 失败:', e?.message || e));
@@ -61,7 +65,7 @@ class TabAudioSession {
     this.audioEl = new Audio();
     this.audioEl.srcObject = this.destNode.stream;
     this.audioEl.play()
-      .then(() => notifyBackground({ event: 'debug', tabId, msg: `audio 播放，gain=${this.gainNode.gain.value.toFixed(3)}, destTracks=${this.destNode.stream.getAudioTracks().length}` }))
+      .then(() => notifyBackground({ event: 'debug', tabId, msg: `audio 播放，gain=${this.gainNode.gain.value.toFixed(3)}, destTracks=${this.destNode.stream.getAudioTracks().length}, currentTime=${audioCtx.currentTime.toFixed(2)}` }))
       .catch((e) => notifyBackground({ event: 'debug', tabId, msg: `audio 元素播放失败：${e?.message || e}` }));
 
     // 页面刷新 / 跳转 / 标签页关闭时，浏览器会结束该捕获流
@@ -126,9 +130,9 @@ function captureErrorCode(err) {
   return `${name}:${m}`;
 }
 
-/** 向 background 广播事件（fire-and-forget，不占用响应通道） */
+/** 向 background 广播事件（fire-and-forget，不占用响应通道；附文档 ID 便于排查多文档并存） */
 function notifyBackground(payload) {
-  chrome.runtime.sendMessage({ type: MSG.OFFSCREEN_EVENT, ...payload }).catch(() => {});
+  chrome.runtime.sendMessage({ type: MSG.OFFSCREEN_EVENT, docId: DOC_ID, ...payload }).catch(() => {});
 }
 
 /**
