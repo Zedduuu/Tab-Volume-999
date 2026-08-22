@@ -254,11 +254,36 @@ async function ensureOffscreenDocument() {
   }
 }
 
-/** 安全设置静音：传 callback 消费 lastError，避免“Unchecked runtime.lastError”（兼容 callback / promise 两种实现） */
+/** 安全设置静音（background 上下文，tabCapture 可用）：返回是否成功 */
 function safeSetMuted(tabId, muted) {
-  try {
-    chrome.tabCapture.setMuted(tabId, muted, () => void chrome.runtime.lastError);
-  } catch { /* 同步异常忽略 */ }
+  return new Promise((resolve) => {
+    try {
+      chrome.tabCapture.setMuted(tabId, muted, () => {
+        if (chrome.runtime.lastError) {
+          console.error('[bg] setMuted(', muted, ') 失败：tabId =', tabId, ', 原因 =', chrome.runtime.lastError.message);
+          resolve(false);
+        } else {
+          console.log('[bg] setMuted(', muted, ') 成功：tabId =', tabId);
+          resolve(true);
+        }
+      });
+    } catch (e) {
+      console.error('[bg] setMuted 同步异常：', e?.message || e);
+      resolve(false);
+    }
+  });
+}
+
+/** 安全读取静音状态：返回 Promise 并消费 lastError */
+function safeGetMuted(tabId) {
+  return new Promise((resolve) => {
+    try {
+      chrome.tabCapture.getMuted(tabId, (muted) => {
+        void chrome.runtime.lastError;
+        resolve(Boolean(muted));
+      });
+    } catch { resolve(false); }
+  });
 }
 
 /** 安全设置图标：callback 消费 lastError，避免“Unchecked runtime.lastError” */
@@ -332,9 +357,10 @@ async function handleCapture({ tabId, streamId, volume }) {
   });
   if (resp?.ok) {
     // 接管成功：由 background 静音原标签页（offscreen 中 tabCapture 不可用）
-    await safeSetMuted(tabId, true);
+    const mutedOk = await safeSetMuted(tabId, true);
+    const mutedNow = await safeGetMuted(tabId);
+    console.log('[bg] handleCapture 成功：tabId =', tabId, ', setMuted 结果 =', mutedOk, ', 静音验证 =', mutedNow);
     stopWaiting(tabId);
-    console.log('[bg] handleCapture 成功：tabId =', tabId, ', 已静音');
     const state = await loadSession(tabId);
     if (state) await updateBadge(tabId, state);
   } else {
@@ -465,10 +491,11 @@ async function recaptureTab(tabId, attempt) {
     console.log('[bg] offscreen 重捕结果：tabId =', tabId, ', ok =', resp?.ok, ', error =', resp?.error);
     if (!resp?.ok) throw new Error(resp?.error || (await t('errRecapture')));
     // 重捕成功：静音原标签页 + 退出等待 + 恢复徽标
-    await safeSetMuted(tabId, true);
+    const mutedOk = await safeSetMuted(tabId, true);
+    const mutedNow = await safeGetMuted(tabId);
+    console.log('[bg] 重捕成功：tabId =', tabId, ', volume =', state.volume, ', setMuted =', mutedOk, ', 静音验证 =', mutedNow);
     stopWaiting(tabId);
     await updateBadge(tabId, state);
-    console.log('[bg] 重捕成功：tabId =', tabId, ', volume =', state.volume);
   } catch (err) {
     console.warn('[bg] 重捕失败：tabId =', tabId, ', attempt =', attempt, ', error =', err?.message);
     if (attempt < RECAPTURE.MAX_ATTEMPTS) {
