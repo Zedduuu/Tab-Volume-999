@@ -189,11 +189,12 @@ async function handleCapture({ tabId, streamId, volume }) {
     // 返回错误码，由 background 用 chrome.i18n 翻译成用户语言
     return { ok: false, error: `capture:${captureErrorCode(err)}` };
   }
-  // 调试上报：流是否真的有音频轨且 active
+  // 调试上报：流是否真的有音频轨、轨道是否被静音、AudioContext 是否 running
+  const firstTrack = stream.getAudioTracks()[0];
   notifyBackground({
     event: 'debug',
     tabId,
-    msg: `getUserMedia 成功，audioTracks=${stream.getAudioTracks().length}, active=${stream.active}`,
+    msg: `getUserMedia：tracks=${stream.getAudioTracks().length}, active=${stream.active}, trackMuted=${firstTrack?.muted}, ctxState=${audioCtx.state}`,
   });
 
   // 防止 AudioContext 被自动播放策略挂起
