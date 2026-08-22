@@ -108,11 +108,26 @@ class TabAudioSession {
 /** i18n 取词简写：按用户偏好语言（async，返回 Promise） */
 const t = (key, args) => I18N.getText(key, args);
 
-/** 安全设置静音：callback 消费 lastError，避免“Unchecked runtime.lastError” */
+/** 安全设置静音：callback 消费 lastError，避免“Unchecked runtime.lastError”；返回是否成功 */
 function safeSetMuted(tabId, muted) {
-  try {
-    chrome.tabCapture.setMuted(tabId, muted, () => void chrome.runtime.lastError);
-  } catch { /* 同步异常忽略 */ }
+  return new Promise((resolve) => {
+    try {
+      chrome.tabCapture.setMuted(tabId, muted, () => {
+        if (chrome.runtime.lastError) {
+          console.error('[offscreen] setMuted(', muted, ') 失败：tabId =', tabId, ', 原因 =', chrome.runtime.lastError.message);
+          notifyBackground({ event: 'debug', tabId, msg: `setMuted(${muted}) 失败：${chrome.runtime.lastError.message}` });
+          resolve(false);
+        } else {
+          console.log('[offscreen] setMuted(', muted, ') 成功：tabId =', tabId);
+          resolve(true);
+        }
+      });
+    } catch (e) {
+      console.error('[offscreen] setMuted 同步异常：', e?.message || e);
+      notifyBackground({ event: 'debug', tabId, msg: `setMuted 同步异常：${e?.message || e}` });
+      resolve(false);
+    }
+  });
 }
 
 /** 安全读取静音状态：Promise 返回结果并消费 lastError */
@@ -235,14 +250,14 @@ async function handleCapture({ tabId, streamId, volume }) {
   sessions.set(tabId, session);
 
   // 静音原标签页，否则会同时听到原生声音 + 本扩展回放（双重声音）
-  safeSetMuted(tabId, true);
+  const mutedOk = await safeSetMuted(tabId, true);
   console.log('[offscreen] 会话创建成功：tabId =', tabId, ', 已静音原标签页');
   const verifyMuted = await safeGetMuted(tabId);
   console.log('[offscreen] 静音验证：tabId =', tabId, ', muted =', verifyMuted);
   notifyBackground({
     event: 'debug',
     tabId,
-    msg: `会话建立，静音验证 muted=${verifyMuted}, audioCtx.state=${audioCtx.state}`,
+    msg: `会话建立，setMuted 结果=${mutedOk}, 静音验证 muted=${verifyMuted}, audioCtx.state=${audioCtx.state}`,
   });
 
   notifyBackground({ event: 'started', tabId });
