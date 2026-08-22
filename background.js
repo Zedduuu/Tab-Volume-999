@@ -57,6 +57,9 @@ const RECAPTURE = { DELAY_MS: 1500, MAX_ATTEMPTS: 3 };
 /** 存放「重新捕获」定时器句柄：tabId -> setTimeout id */
 const recaptureTimers = {};
 
+/** 处于「等待标签页恢复播放」状态的 tabId（暂停/无音频导致自动重捕失败后进入） */
+const waitingRecapture = new Set();
+
 /* ------------------------------ 工具函数 ------------------------------ */
 
 /** i18n 取词简写：按用户偏好语言（async，返回 Promise） */
@@ -269,6 +272,7 @@ async function handleStart({ tabId }) {
   const resp = await sendToOffscreen({ type: MSG.OFFSCREEN_START, tabId });
   if (resp?.alreadyActive) {
     // 会话已存在：恢复该标签页的徽标数字
+    waitingRecapture.delete(tabId);
     const state = await loadSession(tabId);
     if (state) await updateBadge(tabId, state);
   }
@@ -292,6 +296,7 @@ async function handleCapture({ tabId, streamId, volume }) {
   });
   if (resp?.ok) {
     // 接管成功：显示该标签页的徽标数字
+    waitingRecapture.delete(tabId);
     const state = await loadSession(tabId);
     if (state) await updateBadge(tabId, state);
   }
@@ -409,24 +414,45 @@ async function recaptureTab(tabId, attempt) {
       volume: state.muted ? 0 : state.volume,
     });
     if (!resp?.ok) throw new Error(resp?.error || (await t('errRecapture')));
+    // 重捕成功：移出等待恢复集合，恢复徽标
+    waitingRecapture.delete(tabId);
     await updateBadge(tabId, state);
   } catch (err) {
     if (attempt < RECAPTURE.MAX_ATTEMPTS) {
       recaptureTimers[tabId] = setTimeout(() => recaptureTab(tabId, attempt + 1), RECAPTURE.DELAY_MS);
     } else {
-      // 多次失败：解除静音避免标签页无声；音量设置保留，等用户再次打开面板
+      // 多次失败：标签页多半已暂停/无音频，浏览器拒绝提供捕获流。
+      // 解除静音恢复原生播放（暂停时本来无声，用户无感知），
+      // 并标记「等待恢复播放」——等标签页重新出声（audible 变 true）时自动重新接管，
+      // 这样音量回到用户设置值，而不是永久变回原生音量。
       await unmuteTab(tabId);
       await updateBadge(tabId, null);
+      waitingRecapture.add(tabId);
     }
   }
 }
 
 /* --------------------------- 标签页生命周期监听 --------------------------- */
 
+/**
+ * 标签页从「暂停/无声音」恢复播放（audible 变为 true）时，重新接管音量。
+ * 解决场景：暂停视频 → tabCapture 流被浏览器终止 → 自动重捕失败进入等待；
+ * 恢复播放时本监听触发重捕，音量回到用户设置值而不是原生音量。
+ */
+chrome.tabs.onUpdated.addListener((tabId, changeInfo) => {
+  if (!waitingRecapture.has(tabId)) return;
+  // audible=true = 标签页开始出声；status=complete = 页面加载完成（导航场景兜底）
+  if (changeInfo.audible === true || changeInfo.status === 'complete') {
+    waitingRecapture.delete(tabId);
+    recaptureTab(tabId, 1);
+  }
+});
+
 /** 标签页关闭：停止接管 + 解除静音 + 清理状态 */
 chrome.tabs.onRemoved.addListener((tabId) => {
   clearTimeout(recaptureTimers[tabId]);
   delete recaptureTimers[tabId];
+  waitingRecapture.delete(tabId);
   sendToOffscreen({ type: MSG.OFFSCREEN_STOP, tabId }).catch(() => {});
   clearSession(tabId);
 });
