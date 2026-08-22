@@ -73,12 +73,13 @@ class TabAudioSession {
   }
 
   /**
-   * 平滑地设置增益（0 = 静音，1 = 100%，9.99 = 999%）。
-   * 用指数逼近曲线而非直接赋值，避免音量突变产生“咔哒”爆音。
+   * 设置增益（0 = 静音，1 = 100%，9.99 = 999%）。
+   * 注意：用 setTargetAtTime 指数逼近在 offscreen 的 AudioContext 中
+   * 实测不推进（gain 卡在旧值），这里改用直接赋值，立即生效。
    */
   setVolume(volume) {
     const target = Math.min(VOLUME.MAX, Math.max(VOLUME.MIN, volume)) / 100;
-    this.gainNode.gain.setTargetAtTime(target, audioCtx.currentTime, 0.02);
+    this.gainNode.gain.value = target;
     console.log('[offscreen] setVolume：tabId =', this.tabId, ', gain →', target);
     notifyBackground({ event: 'debug', tabId: this.tabId, msg: `setVolume gain→${target}` });
   }
