@@ -511,8 +511,19 @@ async function recaptureTab(tabId, attempt) {
   }
 
   try {
-    const streamId = await chrome.tabCapture.getMediaStreamId({ targetTabId: tabId });
-    console.log('[bg] getMediaStreamId 成功：tabId =', tabId, ', streamId 前 12 位 =', String(streamId).slice(0, 12));
+    // 当前激活标签页可以「无 targetTabId」捕获（无需 activeTab 授权，纯后台也可用）；
+    // 非激活标签页才需要 targetTabId + activeTab（无手势时会失败，进入等待）。
+    const [activeTab] = await chrome.tabs.query({ active: true, lastFocusedWindow: true });
+    const isActive = activeTab?.id === tabId;
+    let streamId;
+    if (isActive) {
+      streamId = await chrome.tabCapture.getMediaStreamId({});
+      console.log('[bg] getMediaStreamId(激活标签页) 成功：tabId =', tabId);
+    } else {
+      streamId = await chrome.tabCapture.getMediaStreamId({ targetTabId: tabId });
+      console.log('[bg] getMediaStreamId(targetTabId) 成功：tabId =', tabId);
+    }
+    console.log('[bg] streamId 前 12 位 =', String(streamId).slice(0, 12));
     const resp = await sendToOffscreen({
       type: MSG.OFFSCREEN_CAPTURE,
       tabId,
@@ -528,7 +539,19 @@ async function recaptureTab(tabId, attempt) {
     stopWaiting(tabId);
     await updateBadge(tabId, state);
   } catch (err) {
-    console.warn('[bg] 重捕失败：tabId =', tabId, ', attempt =', attempt, ', error =', err?.message);
+    const errMsg = String(err?.message || '');
+    console.warn('[bg] 重捕失败：tabId =', tabId, ', attempt =', attempt, ', error =', errMsg);
+    // 无 activeTab 授权（纯后台重捕非激活标签页）：自动重试无意义（会无限循环），
+    // 解除静音让用户至少听到原生声音，用户下次点击扩展图标时恢复接管。
+    if (/Extension has not been invoked|activeTab permission|invoked for the current page/i.test(errMsg)) {
+      stopWaiting(tabId);
+      clearTimeout(recaptureTimers[tabId]);
+      delete recaptureTimers[tabId];
+      await unmuteTab(tabId);
+      await updateBadge(tabId, null);
+      console.warn('[bg] 无 activeTab 授权，解除静音并停止自动重试：tabId =', tabId);
+      return;
+    }
     if (attempt < RECAPTURE.MAX_ATTEMPTS) {
       recaptureTimers[tabId] = setTimeout(() => recaptureTab(tabId, attempt + 1), RECAPTURE.DELAY_MS);
     } else {
