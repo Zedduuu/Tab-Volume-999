@@ -47,12 +47,21 @@ class TabAudioSession {
     this.tabId = tabId;
     this.stream = stream;
 
-    // 信号链：音频流 → 增益节点 → 系统扬声器
+    // 信号链：标签页音频流 → 增益节点 → MediaStreamDestination → <audio> 元素播放
+    // 注意：offscreen 中直接连接 audioCtx.destination 在 Edge 上实测不可靠（不输出），
+    //       改用 Chrome 官方推荐的 MediaStreamDestination + Audio 元素模式。
     this.gainNode = audioCtx.createGain();
-    this.gainNode.connect(audioCtx.destination);
+    this.destNode = audioCtx.createMediaStreamDestination();
+    this.gainNode.connect(this.destNode);
 
     this.sourceNode = audioCtx.createMediaStreamSource(stream);
     this.sourceNode.connect(this.gainNode);
+
+    this.audioEl = new Audio();
+    this.audioEl.srcObject = this.destNode.stream;
+    this.audioEl.play()
+      .then(() => console.log('[offscreen] audio 元素开始播放：tabId =', this.tabId))
+      .catch((e) => console.error('[offscreen] audio 元素播放失败：tabId =', this.tabId, ', 原因 =', e?.message || e));
 
     // 页面刷新 / 跳转 / 标签页关闭时，浏览器会结束该捕获流
     this.endedHandler = () => this.handleStreamEnded();
@@ -87,6 +96,8 @@ class TabAudioSession {
   async release() {
     this.sourceNode.disconnect();
     this.gainNode.disconnect();
+    this.audioEl.pause();
+    this.audioEl.srcObject = null;
     for (const track of this.stream.getTracks()) {
       track.removeEventListener('ended', this.endedHandler);
       track.stop();
