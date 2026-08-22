@@ -240,8 +240,6 @@ async function sendToOffscreen(message, retries = 8, delayMs = 150) {
   throw lastError;
 }
 
-/** 离屏文档唯一标识：背景并发检测多个文档用 */
-let offscreenDocId = null;
 let ensureDocPromise = null;
 
 /** 确保离屏文档存在（并发安全：同一时刻只允许一次创建流程） */
@@ -250,10 +248,7 @@ async function ensureOffscreenDocument() {
   ensureDocPromise = (async () => {
     try {
       const contexts = await chrome.runtime.getContexts({ contextTypes: ['OFFSCREEN_DOCUMENT'] });
-      if (contexts.length > 0) {
-        offscreenDocId = contexts[0].documentUrl?.split('/').pop() || 'unknown';
-        return;
-      }
+      if (contexts.length > 0) return;
     } catch { /* 忽略，走直接创建 */ }
 
     try {
@@ -287,7 +282,6 @@ function safeSetMuted(tabId, muted) {
           console.error('[bg] setMuted(', muted, ') 失败：tabId =', tabId, ', 原因 =', err);
           resolve(false);
         } else {
-          console.log('[bg] setMuted(', muted, ') 成功：tabId =', tabId);
           resolve(true);
         }
       };
@@ -399,9 +393,7 @@ async function handleCapture({ tabId, streamId, volume }) {
   });
   if (resp?.ok) {
     // 接管成功：由 background 静音原标签页（offscreen 中 tabCapture 不可用）
-    const mutedOk = await safeSetMuted(tabId, true);
-    const mutedNow = await safeGetMuted(tabId);
-    console.log('[bg] handleCapture 成功：tabId =', tabId, ', setMuted 结果 =', mutedOk, ', 静音验证 =', mutedNow);
+    await safeSetMuted(tabId, true);
     stopWaiting(tabId);
     needsGesture.delete(tabId);
     const state = await loadSession(tabId);
@@ -478,9 +470,11 @@ async function handleSetVolume({ tabId, volume, muted }) {
   return { ok: true, state: next };
 }
 
-/** 离屏文档上报的事件（started / ended / error / debug） */
-async function handleOffscreenEvent({ tabId, event, error, msg, docId }) {
-  console.log(`[bg] offscreen 事件：${event}, tabId = ${tabId}, docId = ${docId || '?'}`, error ? `, error = ${error}` : '', msg ? `, 详情 = ${msg}` : '');
+/** 离屏文档上报的事件（started / ended / error） */
+async function handleOffscreenEvent({ tabId, event, error }) {
+  if (event === 'error') {
+    console.warn('[bg] offscreen 事件：', event, ', tabId =', tabId, ', error =', error);
+  }
   switch (event) {
     case 'ended':
       // 音频流被系统切断（页面刷新 / 跳转 / 关闭）→ 稍作延迟后尝试重新接管
@@ -503,7 +497,6 @@ async function handleOffscreenEvent({ tabId, event, error, msg, docId }) {
 
 /** 页面跳转后尝试重新捕获音频，最多尝试 MAX_ATTEMPTS 次 */
 async function recaptureTab(tabId, attempt) {
-  console.log('[bg] recaptureTab 开始：tabId =', tabId, ', attempt =', attempt);
   delete recaptureTimers[tabId];
 
   const state = await loadSession(tabId);
@@ -530,24 +523,18 @@ async function recaptureTab(tabId, attempt) {
     let streamId;
     if (isActive) {
       streamId = await chrome.tabCapture.getMediaStreamId({});
-      console.log('[bg] getMediaStreamId(激活标签页) 成功：tabId =', tabId);
     } else {
       streamId = await chrome.tabCapture.getMediaStreamId({ targetTabId: tabId });
-      console.log('[bg] getMediaStreamId(targetTabId) 成功：tabId =', tabId);
     }
-    console.log('[bg] streamId 前 12 位 =', String(streamId).slice(0, 12));
     const resp = await sendToOffscreen({
       type: MSG.OFFSCREEN_CAPTURE,
       tabId,
       streamId,
       volume: state.muted ? 0 : state.volume,
     });
-    console.log('[bg] offscreen 重捕结果：tabId =', tabId, ', ok =', resp?.ok, ', error =', resp?.error);
     if (!resp?.ok) throw new Error(resp?.error || (await t('errRecapture')));
     // 重捕成功：静音原标签页 + 退出等待 + 恢复徽标
-    const mutedOk = await safeSetMuted(tabId, true);
-    const mutedNow = await safeGetMuted(tabId);
-    console.log('[bg] 重捕成功：tabId =', tabId, ', volume =', state.volume, ', setMuted =', mutedOk, ', 静音验证 =', mutedNow);
+    await safeSetMuted(tabId, true);
     stopWaiting(tabId);
     needsGesture.delete(tabId);
     await updateBadge(tabId, state);
@@ -591,12 +578,7 @@ async function recaptureTab(tabId, attempt) {
  * 恢复播放时本监听触发重捕，音量回到用户设置值而不是原生音量。
  */
 chrome.tabs.onUpdated.addListener((tabId, changeInfo) => {
-  // 记录标签页静音状态变化（调试用：确认静音何时/为何被解除）
-  if (changeInfo.mutedInfo) {
-    console.log('[bg] 标签页静音变化：tabId =', tabId, ', muted =', changeInfo.mutedInfo.muted, ', reason =', changeInfo.mutedInfo.reason);
-  }
   if (!waitingRecapture.has(tabId)) return;
-  console.log('[bg] onUpdated 触发等待重捕：tabId =', tabId, ', audible =', changeInfo.audible, ', status =', changeInfo.status);
   // audible=true = 标签页开始出声；status=complete = 页面加载完成（导航场景兜底）
   if (changeInfo.audible === true || changeInfo.status === 'complete') {
     stopWaiting(tabId);
@@ -653,7 +635,6 @@ async function ensureSessionsAlive() {
       if (needsGesture.has(tabId)) continue; // 需用户手势的标签页不再自动重试
       const resp = await sendToOffscreen({ type: MSG.OFFSCREEN_START, tabId }).catch(() => ({ ok: false }));
       if (!resp?.ok || !resp?.alreadyActive) {
-        console.log('[bg] 会话缺失，重新接管：tabId =', tabId);
         await recaptureTab(tabId, 1).catch(() => {});
       }
     }

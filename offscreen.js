@@ -30,11 +30,8 @@ const audioCtx = new AudioContext();
 
 // 监听 AudioContext 状态变化（标签页切后台/窗口节流可能导致挂起）
 audioCtx.onstatechange = () => {
-  console.log(`[offscreen][${DOC_ID}] AudioContext 状态 →`, audioCtx.state, ', currentTime =', audioCtx.currentTime.toFixed(2));
-  notifyBackground({ event: 'debug', tabId: 0, msg: `[${DOC_ID}] ctxState=${audioCtx.state}, currentTime=${audioCtx.currentTime.toFixed(2)}` });
   if (audioCtx.state === 'suspended') {
-    console.log('[offscreen] AudioContext 被挂起，尝试自动恢复');
-    audioCtx.resume().catch((e) => console.error('[offscreen] resume 失败:', e?.message || e));
+    audioCtx.resume().catch((e) => console.error('[offscreen] AudioContext resume 失败:', e?.message || e));
   }
 };
 
@@ -64,9 +61,7 @@ class TabAudioSession {
 
     this.audioEl = new Audio();
     this.audioEl.srcObject = this.destNode.stream;
-    this.audioEl.play()
-      .then(() => notifyBackground({ event: 'debug', tabId, msg: `audio 播放，gain=${this.gainNode.gain.value.toFixed(3)}, destTracks=${this.destNode.stream.getAudioTracks().length}, currentTime=${audioCtx.currentTime.toFixed(2)}` }))
-      .catch((e) => notifyBackground({ event: 'debug', tabId, msg: `audio 元素播放失败：${e?.message || e}` }));
+    this.audioEl.play().catch(() => {});
 
     // 页面刷新 / 跳转 / 标签页关闭时，浏览器会结束该捕获流
     this.endedHandler = () => this.handleStreamEnded();
@@ -84,13 +79,10 @@ class TabAudioSession {
   setVolume(volume) {
     const target = Math.min(VOLUME.MAX, Math.max(VOLUME.MIN, volume)) / 100;
     this.gainNode.gain.value = target;
-    console.log('[offscreen] setVolume：tabId =', this.tabId, ', gain →', target);
-    notifyBackground({ event: 'debug', tabId: this.tabId, msg: `setVolume gain→${target}` });
   }
 
   /** 捕获流被系统中断（页面跳转等）时的回调 */
   handleStreamEnded() {
-    console.warn('[offscreen] 流已 ended，tabId =', this.tabId);
     this.release();
     notifyBackground({ event: 'ended', tabId: this.tabId });
   }
@@ -142,20 +134,15 @@ function notifyBackground(payload) {
 async function getUserMediaTab(streamId) {
   const base = { chromeMediaSource: 'tab', chromeMediaSourceId: streamId };
   try {
-    const stream = await navigator.mediaDevices.getUserMedia({ audio: { mandatory: base } });
-    console.log('[offscreen] getUserMedia(旧写法) 成功，tracks =', stream.getAudioTracks().length);
-    return stream;
+    return await navigator.mediaDevices.getUserMedia({ audio: { mandatory: base } });
   } catch (err) {
-    console.warn('[offscreen] getUserMedia(旧写法) 失败:', err.name, '-', err.message);
     // Edge 对 mandatory 旧写法支持差（常报 AbortError/TypeError），
     // 除「标签页已被捕获」类错误外一律切换新写法重试。
     if (!/already|captur/i.test(String(err.message))) {
       try {
-        const stream = await navigator.mediaDevices.getUserMedia({ audio: base });
-        console.log('[offscreen] getUserMedia(新写法) 成功，tracks =', stream.getAudioTracks().length);
-        return stream;
+        return await navigator.mediaDevices.getUserMedia({ audio: base });
       } catch (err2) {
-        console.error('[offscreen] getUserMedia(新写法) 失败:', err2.name, '-', err2.message);
+        console.error('[offscreen] getUserMedia 失败：', err2.name, '-', err2.message);
         throw err2;
       }
     }
@@ -192,11 +179,8 @@ async function handleCapture({ tabId, streamId, volume }) {
   const existing = sessions.get(tabId);
   if (existing) {
     existing.setVolume(volume);
-    console.log('[offscreen] 复用已有会话，tabId =', tabId);
     return { ok: true, alreadyActive: true };
   }
-
-  console.log('[offscreen] handleCapture 开始：tabId =', tabId, ', volume =', volume);
 
   // 用 streamId 换取标签页音频流
   let stream;
@@ -208,7 +192,6 @@ async function handleCapture({ tabId, streamId, volume }) {
     const reExisting = sessions.get(tabId);
     if (reExisting && reExisting.stream.active) {
       reExisting.setVolume(volume);
-      console.warn('[offscreen] 捕获失败但会话已存在，复用：tabId =', tabId, ', 原因 =', err?.name, err?.message);
       return { ok: true, alreadyActive: true };
     }
     console.error('[offscreen] 捕获失败：tabId =', tabId, ', name =', err?.name, ', message =', err?.message);
@@ -216,13 +199,6 @@ async function handleCapture({ tabId, streamId, volume }) {
     // 返回错误码，由 background 用 chrome.i18n 翻译成用户语言
     return { ok: false, error: `capture:${captureErrorCode(err)}` };
   }
-  // 调试上报：流是否真的有音频轨、轨道是否被静音、AudioContext 是否 running
-  const firstTrack = stream.getAudioTracks()[0];
-  notifyBackground({
-    event: 'debug',
-    tabId,
-    msg: `getUserMedia：tracks=${stream.getAudioTracks().length}, active=${stream.active}, trackMuted=${firstTrack?.muted}, ctxState=${audioCtx.state}`,
-  });
 
   // 防止 AudioContext 被自动播放策略挂起
   if (audioCtx.state === 'suspended') {
@@ -234,7 +210,6 @@ async function handleCapture({ tabId, streamId, volume }) {
   sessions.set(tabId, session);
 
   // 标签页静音由 background 完成（offscreen 中 chrome.tabCapture 不可用）
-  console.log('[offscreen] 会话创建成功：tabId =', tabId);
   notifyBackground({ event: 'started', tabId });
   return { ok: true };
 }
@@ -244,7 +219,6 @@ async function handleSetVolume({ tabId, volume }) {
   const session = sessions.get(tabId);
   if (!session) return { ok: true, applied: false }; // 会话不存在（可能刚跳转），状态已由后台存好
   session.setVolume(volume);
-  console.log('[offscreen] handleSetVolume：tabId =', tabId, ', volume =', volume);
   return { ok: true, applied: true };
 }
 
@@ -254,16 +228,11 @@ async function handleSetVolume({ tabId, volume }) {
  * 用户点开扩展图标（手势）时调用本函数，让声音恢复。
  */
 async function handleActivate() {
-  console.log('[offscreen] 收到激活指令，当前会话数 =', sessions.size, ', ctxState =', audioCtx.state);
   if (audioCtx.state === 'suspended') {
     try { await audioCtx.resume(); } catch { /* 忽略 */ }
   }
   for (const session of sessions.values()) {
-    if (session.audioEl) {
-      session.audioEl.play()
-        .then(() => notifyBackground({ event: 'debug', tabId: session.tabId, msg: '激活：audio 元素开始播放' }))
-        .catch((e) => notifyBackground({ event: 'debug', tabId: session.tabId, msg: `激活：audio 元素播放失败：${e?.message || e}` }));
-    }
+    if (session.audioEl) session.audioEl.play().catch(() => {});
   }
   return { ok: true };
 }
