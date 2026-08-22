@@ -40,14 +40,12 @@ const sessions = new Map();
 
 class TabAudioSession {
   /**
-   * @param {number}      tabId       目标标签页 ID
-   * @param {MediaStream} stream      经 tabCapture 获取的该标签页音频流
-   * @param {boolean}     priorMuted  接管前标签页是否已被静音（用于停止时还原）
+   * @param {number}      tabId   目标标签页 ID
+   * @param {MediaStream} stream  经 tabCapture 获取的该标签页音频流
    */
-  constructor(tabId, stream, priorMuted) {
+  constructor(tabId, stream) {
     this.tabId = tabId;
     this.stream = stream;
-    this.priorMuted = priorMuted;
 
     // 信号链：音频流 → 增益节点 → 系统扬声器
     this.gainNode = audioCtx.createGain();
@@ -77,16 +75,16 @@ class TabAudioSession {
   /** 捕获流被系统中断（页面跳转等）时的回调 */
   handleStreamEnded() {
     console.warn('[offscreen] 流已 ended，tabId =', this.tabId);
-    this.release(true); // 保持标签页静音：新页面可能马上要重新接管
+    this.release();
     notifyBackground({ event: 'ended', tabId: this.tabId });
   }
 
   /**
    * 释放本会话。
-   * @param {boolean} keepMuted true  = 保留标签页静音（页面跳转待重捕）
-   *                            false = 解除静音（停止接管 / 标签页关闭）
+   * 注意：标签页的静音/解除静音由 background 统一管理——
+   * offscreen 文档中 chrome.tabCapture API 不可用（Edge 限制）。
    */
-  async release(keepMuted = false) {
+  async release() {
     this.sourceNode.disconnect();
     this.gainNode.disconnect();
     for (const track of this.stream.getTracks()) {
@@ -95,51 +93,23 @@ class TabAudioSession {
     }
     this.stream.removeEventListener('inactive', this.endedHandler);
     sessions.delete(this.tabId);
-
-    if (!keepMuted) {
-      // 还原到接管前的静音状态（避免把用户手动静音的标签页误开启）
-      safeSetMuted(this.tabId, this.priorMuted);
-    }
   }
 }
 
 /* ------------------------------ 工具函数 ------------------------------ */
 
-/** i18n 取词简写：按用户偏好语言（async，返回 Promise） */
-const t = (key, args) => I18N.getText(key, args);
+/** i18n 说明：offscreen 文档中 chrome.i18n 不可用（Edge 限制），
+ * 因此 offscreen 不再调用 chrome.i18n / tabCapture API；
+ * 需要翻译的错误统一返回错误码，由 background 用 chrome.i18n 翻译。 */
 
-/** 安全设置静音：callback 消费 lastError，避免“Unchecked runtime.lastError”；返回是否成功 */
-function safeSetMuted(tabId, muted) {
-  return new Promise((resolve) => {
-    try {
-      chrome.tabCapture.setMuted(tabId, muted, () => {
-        if (chrome.runtime.lastError) {
-          console.error('[offscreen] setMuted(', muted, ') 失败：tabId =', tabId, ', 原因 =', chrome.runtime.lastError.message);
-          notifyBackground({ event: 'debug', tabId, msg: `setMuted(${muted}) 失败：${chrome.runtime.lastError.message}` });
-          resolve(false);
-        } else {
-          console.log('[offscreen] setMuted(', muted, ') 成功：tabId =', tabId);
-          resolve(true);
-        }
-      });
-    } catch (e) {
-      console.error('[offscreen] setMuted 同步异常：', e?.message || e);
-      notifyBackground({ event: 'debug', tabId, msg: `setMuted 同步异常：${e?.message || e}` });
-      resolve(false);
-    }
-  });
-}
-
-/** 安全读取静音状态：Promise 返回结果并消费 lastError */
-function safeGetMuted(tabId) {
-  return new Promise((resolve) => {
-    try {
-      chrome.tabCapture.getMuted(tabId, (muted) => {
-        void chrome.runtime.lastError;
-        resolve(Boolean(muted));
-      });
-    } catch { resolve(false); }
-  });
+/** 把 getUserMedia 的错误映射为稳定的错误码，交 background 翻译 */
+function captureErrorCode(err) {
+  const m = String(err?.message || '');
+  const name = String(err?.name || '');
+  if (/already|captur/i.test(m)) return 'already-captured';
+  if (name === 'NotAllowedError') return 'not-allowed';
+  if (name === 'NotSupportedError' || /constraint/i.test(m)) return 'not-supported';
+  return `${name}:${m}`;
 }
 
 /** 向 background 广播事件（fire-and-forget，不占用响应通道） */
@@ -194,18 +164,6 @@ async function handleStart({ tabId }) {
   return { ok: false, needsCapture: true };
 }
 
-/** 把 getUserMedia 的错误翻译成用户可读的提示 */
-async function friendlyCaptureError(err) {
-  const m = String(err?.message || '');
-  const name = String(err?.name || '');
-  if (/already|captur/i.test(m)) return t('errAlreadyCaptured');
-  if (name === 'NotAllowedError') return t('errNotAllowed');
-  if (name === 'NotSupportedError' || /constraint/i.test(m)) {
-    return t('errNotSupported');
-  }
-  return `${name}: ${m}`;
-}
-
 /**
  * background 请求：用 streamId 新建捕获会话（真正的“接管”）。
  * 仅在 popup 探测确认无会话后才调用。
@@ -219,9 +177,7 @@ async function handleCapture({ tabId, streamId, volume }) {
     return { ok: true, alreadyActive: true };
   }
 
-  // 读取接管前的静音状态，以便停止时还原
-  const priorMuted = await safeGetMuted(tabId);
-  console.log('[offscreen] handleCapture 开始：tabId =', tabId, ', priorMuted =', priorMuted, ', volume =', volume);
+  console.log('[offscreen] handleCapture 开始：tabId =', tabId, ', volume =', volume);
 
   // 用 streamId 换取标签页音频流
   let stream;
@@ -230,8 +186,8 @@ async function handleCapture({ tabId, streamId, volume }) {
   } catch (err) {
     console.error('[offscreen] 捕获失败：tabId =', tabId, ', name =', err?.name, ', message =', err?.message);
     notifyBackground({ event: 'error', tabId, error: String(err?.message || err) });
-    const friendly = await friendlyCaptureError(err);
-    return { ok: false, error: await t('errCaptureFailed', [friendly]) };
+    // 返回错误码，由 background 用 chrome.i18n 翻译成用户语言
+    return { ok: false, error: `capture:${captureErrorCode(err)}` };
   }
   // 调试上报：流是否真的有音频轨且 active
   notifyBackground({
@@ -245,21 +201,12 @@ async function handleCapture({ tabId, streamId, volume }) {
     try { await audioCtx.resume(); } catch { /* 若仍失败则保持现状 */ }
   }
 
-  const session = new TabAudioSession(tabId, stream, priorMuted);
+  const session = new TabAudioSession(tabId, stream);
   session.setVolume(volume);
   sessions.set(tabId, session);
 
-  // 静音原标签页，否则会同时听到原生声音 + 本扩展回放（双重声音）
-  const mutedOk = await safeSetMuted(tabId, true);
-  console.log('[offscreen] 会话创建成功：tabId =', tabId, ', 已静音原标签页');
-  const verifyMuted = await safeGetMuted(tabId);
-  console.log('[offscreen] 静音验证：tabId =', tabId, ', muted =', verifyMuted);
-  notifyBackground({
-    event: 'debug',
-    tabId,
-    msg: `会话建立，setMuted 结果=${mutedOk}, 静音验证 muted=${verifyMuted}, audioCtx.state=${audioCtx.state}`,
-  });
-
+  // 标签页静音由 background 完成（offscreen 中 chrome.tabCapture 不可用）
+  console.log('[offscreen] 会话创建成功：tabId =', tabId);
   notifyBackground({ event: 'started', tabId });
   return { ok: true };
 }
@@ -276,7 +223,7 @@ async function handleSetVolume({ tabId, volume }) {
 /** background 请求：停止接管 */
 async function handleStop({ tabId }) {
   const session = sessions.get(tabId);
-  if (session) await session.release(false); // 还原静音状态
+  if (session) await session.release(); // 静音还原由 background 管理
   return { ok: true };
 }
 
@@ -302,13 +249,8 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
 
 /* ---------------------- 页面销毁时的尽力而为清理 ---------------------- */
 
-/** 离屏文档被销毁（如浏览器退出）前，尽量解除各标签页静音 */
+/** 离屏文档被销毁（如浏览器退出）前：会话与音频资源直接清理（静音由 background 管理） */
 self.addEventListener('pagehide', () => {
-  for (const session of sessions.values()) {
-    // 关键：保持标签页静音，不要解除——offscreen 常被浏览器空闲回收，
-    // 一旦解除静音，标签页就会漏出原生音量；后台会自动重建文档并恢复接管。
-    safeSetMuted(session.tabId, true);
-  }
   sessions.clear();
   try { audioCtx.close(); } catch { /* 忽略 */ }
 });

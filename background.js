@@ -275,6 +275,21 @@ function safeSetBadgeText(tabId, text) {
   } catch { /* 同步异常忽略 */ }
 }
 
+/**
+ * 把 offscreen 返回的错误码（如 "capture:already-captured"）翻译成用户语言。
+ * offscreen 中 chrome.i18n 不可用，所以由 background 统一翻译。
+ */
+async function translateOffscreenError(raw) {
+  if (typeof raw !== 'string' || !raw.startsWith('capture:')) return raw;
+  const code = raw.slice('capture:'.length);
+  const friendly =
+    code === 'already-captured' ? await t('errAlreadyCaptured')
+    : code === 'not-allowed' ? await t('errNotAllowed')
+    : code === 'not-supported' ? await t('errNotSupported')
+    : code;
+  return await t('errCaptureFailed', [friendly]);
+}
+
 /** 解除标签页静音（仅在确认是扩展静音时才调用） */
 async function unmuteTab(tabId) {
   safeSetMuted(tabId, false);
@@ -316,13 +331,16 @@ async function handleCapture({ tabId, streamId, volume }) {
     volume: clampVolume(volume),
   });
   if (resp?.ok) {
-    // 接管成功：显示该标签页的徽标数字
+    // 接管成功：由 background 静音原标签页（offscreen 中 tabCapture 不可用）
+    await safeSetMuted(tabId, true);
     stopWaiting(tabId);
-    console.log('[bg] handleCapture 成功：tabId =', tabId);
+    console.log('[bg] handleCapture 成功：tabId =', tabId, ', 已静音');
     const state = await loadSession(tabId);
     if (state) await updateBadge(tabId, state);
   } else {
-    console.warn('[bg] handleCapture 失败：tabId =', tabId, ', error =', resp?.error);
+    // offscreen 返回的是错误码，翻译成用户语言
+    resp.error = await translateOffscreenError(resp?.error);
+    console.warn('[bg] handleCapture 失败：tabId =', tabId, ', error =', resp.error);
   }
   return resp;
 }
@@ -350,6 +368,8 @@ async function handleStop({ tabId }) {
   try {
     await sendToOffscreen({ type: MSG.OFFSCREEN_STOP, tabId });
   } catch { /* 离屏可能未运行 */ }
+  // 停止接管时还原标签页静音（静音由 background 统一管理）
+  await safeSetMuted(tabId, false);
   await clearSession(tabId);
   return { ok: true };
 }
@@ -444,7 +464,8 @@ async function recaptureTab(tabId, attempt) {
     });
     console.log('[bg] offscreen 重捕结果：tabId =', tabId, ', ok =', resp?.ok, ', error =', resp?.error);
     if (!resp?.ok) throw new Error(resp?.error || (await t('errRecapture')));
-    // 重捕成功：退出等待状态，恢复徽标
+    // 重捕成功：静音原标签页 + 退出等待 + 恢复徽标
+    await safeSetMuted(tabId, true);
     stopWaiting(tabId);
     await updateBadge(tabId, state);
     console.log('[bg] 重捕成功：tabId =', tabId, ', volume =', state.volume);
