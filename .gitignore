@@ -1,6 +1,9 @@
 # 商店提交打包产物
 *.zip
 
+# 构建计数器（本地自增 build 号，不应提交）
+tools/.buildcount
+
 # 系统文件
 Thumbs.db
 .DS_Store

@@ -1,14 +1,15 @@
 ﻿<#
   build.ps1 — 一键打包商店提交 zip
 
-  版本号策略（语义版本 + 日期构建号）：
-    - manifest.json 的 version 是"语义版本"（如 1.0.1），手动管理；
-    - 每次打包自动附加"构建号"= 当前日期时间，构成 4 段完整版本，
-      如 1.0.1.202608181530（Edge 扩展版本最多 4 段，第 4 段递增即可更新）；
+  版本号策略（语义版本 + 自增 build 号）：
+    - manifest.json 的 version 是"语义版本"（如 1.0.6），手动管理（前 3 段）；
+    - 每次打包自动附加"build 号"= tools/.buildcount 自增（1、2、3…，范围 1~65535），
+      构成 4 段完整版本，如 1.0.6.1（Edge 扩展版本每段 0~65536，日期型 build 号会超限）；
+    - build 号跨天不回退，商店可基于同一语义版本反复提交更新；
     - zip 文件名 = Tab-Volume-999-<完整版本>.zip，同一版本每次打包都不同。
 
   用法：
-      # 仅生成带时间戳的 zip（manifest.json 不动）
+      # 仅生成带 build 号的 zip（manifest.json 不动）
       powershell -ExecutionPolicy Bypass -File .\tools\build.ps1
 
       # 同时把完整版本写回 manifest.json（推荐在发版时用）
@@ -18,8 +19,8 @@
       powershell -ExecutionPolicy Bypass -File .\tools\build.ps1 -NoStamp
 #>
 param(
-  [switch]$StampManifest,  # 把"完整版本（含日期 build 段）"写回 manifest.json
-  [switch]$NoStamp         # 不使用日期 build 段，只用语义版本
+  [switch]$StampManifest,  # 把"完整版本（含 build 段）"写回 manifest.json
+  [switch]$NoStamp         # 不使用 build 段，只用语义版本
 )
 
 $ErrorActionPreference = 'Stop'
@@ -33,18 +34,26 @@ $manifest = Get-Content $manifestPath -Raw | ConvertFrom-Json
 $parts = $manifest.version -split '\.'
 $semVer = ($parts[0..([math]::Min(2, $parts.Count - 1))] -join '.')
 
-# 2) 拼完整版本 = 语义版本 + 日期时间 build 段
+# 2) 拼完整版本 = 语义版本 + 自增 build 段（1~65535，存 tools/.buildcount）
 if ($NoStamp) {
   $fullVer = $semVer
 } else {
-  $build = Get-Date -Format 'yyyyMMddHHmm'
+  $countFile = Join-Path $root 'tools\.buildcount'
+  $build = 1
+  if (Test-Path $countFile) {
+    $prev = [int](Get-Content $countFile -Raw).Trim()
+    $build = $prev + 1
+  }
+  if ($build -gt 65535) { $build = 1 }
+  Set-Content -Path $countFile -Value $build -Encoding ASCII
   $fullVer = "$semVer.$build"
 }
 
-# 3) 可选：把完整版本写回 manifest（保证商店里看到的就是本包版本）
+# 3) 可选：把完整版本写回 manifest（只替换 version 行，保持原格式）
 if ($StampManifest) {
-  $manifest.version = $fullVer
-  $manifest | ConvertTo-Json -Depth 5 | Set-Content $manifestPath -Encoding UTF8
+  $content = Get-Content $manifestPath -Raw -Encoding UTF8
+  $content = $content -replace '("version"\s*:\s*")[^"]+(")', "`${1}$fullVer`${2}"
+  Set-Content $manifestPath $content -Encoding UTF8 -NoNewline
   Write-Host "✓ 已更新 manifest.json version → $fullVer"
 }
 
