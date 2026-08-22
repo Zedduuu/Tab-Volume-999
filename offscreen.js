@@ -66,6 +66,7 @@ class TabAudioSession {
 
   /** 捕获流被系统中断（页面跳转等）时的回调 */
   handleStreamEnded() {
+    console.warn('[offscreen] 流已 ended，tabId =', this.tabId);
     this.release(true); // 保持标签页静音：新页面可能马上要重新接管
     notifyBackground({ event: 'ended', tabId: this.tabId });
   }
@@ -128,11 +129,21 @@ function notifyBackground(payload) {
 async function getUserMediaTab(streamId) {
   const base = { chromeMediaSource: 'tab', chromeMediaSourceId: streamId };
   try {
-    return await navigator.mediaDevices.getUserMedia({ audio: { mandatory: base } });
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: { mandatory: base } });
+    console.log('[offscreen] getUserMedia(旧写法) 成功，tracks =', stream.getAudioTracks().length);
+    return stream;
   } catch (err) {
+    console.error('[offscreen] getUserMedia(旧写法) 失败:', err.name, '-', err.message);
     // 仅当失败源于约束写法本身（而非“标签页已被捕获”等）时，切换写法重试
     if (err.name === 'TypeError' || /constraint|mandatory|overconstrained/i.test(String(err.message))) {
-      return navigator.mediaDevices.getUserMedia({ audio: base });
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: base });
+        console.log('[offscreen] getUserMedia(新写法) 成功，tracks =', stream.getAudioTracks().length);
+        return stream;
+      } catch (err2) {
+        console.error('[offscreen] getUserMedia(新写法) 失败:', err2.name, '-', err2.message);
+        throw err2;
+      }
     }
     throw err;
   }
@@ -179,17 +190,20 @@ async function handleCapture({ tabId, streamId, volume }) {
   const existing = sessions.get(tabId);
   if (existing) {
     existing.setVolume(volume);
+    console.log('[offscreen] 复用已有会话，tabId =', tabId);
     return { ok: true, alreadyActive: true };
   }
 
   // 读取接管前的静音状态，以便停止时还原
   const priorMuted = await safeGetMuted(tabId);
+  console.log('[offscreen] handleCapture 开始：tabId =', tabId, ', priorMuted =', priorMuted, ', volume =', volume);
 
   // 用 streamId 换取标签页音频流
   let stream;
   try {
     stream = await getUserMediaTab(streamId);
   } catch (err) {
+    console.error('[offscreen] 捕获失败：tabId =', tabId, ', name =', err?.name, ', message =', err?.message);
     notifyBackground({ event: 'error', tabId, error: String(err?.message || err) });
     const friendly = await friendlyCaptureError(err);
     return { ok: false, error: await t('errCaptureFailed', [friendly]) };
@@ -206,6 +220,7 @@ async function handleCapture({ tabId, streamId, volume }) {
 
   // 静音原标签页，否则会同时听到原生声音 + 本扩展回放（双重声音）
   safeSetMuted(tabId, true);
+  console.log('[offscreen] 会话创建成功：tabId =', tabId, ', 已静音原标签页');
 
   notifyBackground({ event: 'started', tabId });
   return { ok: true };

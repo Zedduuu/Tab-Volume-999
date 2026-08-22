@@ -318,8 +318,11 @@ async function handleCapture({ tabId, streamId, volume }) {
   if (resp?.ok) {
     // 接管成功：显示该标签页的徽标数字
     stopWaiting(tabId);
+    console.log('[bg] handleCapture 成功：tabId =', tabId);
     const state = await loadSession(tabId);
     if (state) await updateBadge(tabId, state);
+  } else {
+    console.warn('[bg] handleCapture 失败：tabId =', tabId, ', error =', resp?.error);
   }
   return resp;
 }
@@ -388,6 +391,7 @@ async function handleSetVolume({ tabId, volume, muted }) {
 
 /** 离屏文档上报的事件（started / ended / error） */
 async function handleOffscreenEvent({ tabId, event, error }) {
+  console.log('[bg] offscreen 事件：', event, ', tabId =', tabId, error ? `, error = ${error}` : '');
   switch (event) {
     case 'ended':
       // 音频流被系统切断（页面刷新 / 跳转 / 关闭）→ 稍作延迟后尝试重新接管
@@ -410,6 +414,7 @@ async function handleOffscreenEvent({ tabId, event, error }) {
 
 /** 页面跳转后尝试重新捕获音频，最多尝试 MAX_ATTEMPTS 次 */
 async function recaptureTab(tabId, attempt) {
+  console.log('[bg] recaptureTab 开始：tabId =', tabId, ', attempt =', attempt);
   delete recaptureTimers[tabId];
 
   const state = await loadSession(tabId);
@@ -430,18 +435,21 @@ async function recaptureTab(tabId, attempt) {
 
   try {
     const streamId = await chrome.tabCapture.getMediaStreamId({ targetTabId: tabId });
+    console.log('[bg] getMediaStreamId 成功：tabId =', tabId, ', streamId 前 12 位 =', String(streamId).slice(0, 12));
     const resp = await sendToOffscreen({
       type: MSG.OFFSCREEN_CAPTURE,
       tabId,
       streamId,
       volume: state.muted ? 0 : state.volume,
     });
+    console.log('[bg] offscreen 重捕结果：tabId =', tabId, ', ok =', resp?.ok, ', error =', resp?.error);
     if (!resp?.ok) throw new Error(resp?.error || (await t('errRecapture')));
     // 重捕成功：退出等待状态，恢复徽标
     stopWaiting(tabId);
     await updateBadge(tabId, state);
+    console.log('[bg] 重捕成功：tabId =', tabId, ', volume =', state.volume);
   } catch (err) {
-    if (attempt < RECAPTURE.MAX_ATTEMPTS) {
+    console.warn('[bg] 重捕失败：tabId =', tabId, ', attempt =', attempt, ', error =', err?.message);
       recaptureTimers[tabId] = setTimeout(() => recaptureTab(tabId, attempt + 1), RECAPTURE.DELAY_MS);
     } else {
       // 多次失败：标签页多半已暂停/无音频，浏览器拒绝提供捕获流。
@@ -450,6 +458,7 @@ async function recaptureTab(tabId, attempt) {
       // 保证标签页一恢复出声，音量就自动回到用户设置值而不是永远停在原生。
       await unmuteTab(tabId);
       await updateBadge(tabId, null);
+      console.warn('[bg] 进入等待恢复：tabId =', tabId);
       enterWaiting(tabId);
     }
   }
@@ -464,6 +473,7 @@ async function recaptureTab(tabId, attempt) {
  */
 chrome.tabs.onUpdated.addListener((tabId, changeInfo) => {
   if (!waitingRecapture.has(tabId)) return;
+  console.log('[bg] onUpdated 触发等待重捕：tabId =', tabId, ', audible =', changeInfo.audible, ', status =', changeInfo.status);
   // audible=true = 标签页开始出声；status=complete = 页面加载完成（导航场景兜底）
   if (changeInfo.audible === true || changeInfo.status === 'complete') {
     stopWaiting(tabId);
