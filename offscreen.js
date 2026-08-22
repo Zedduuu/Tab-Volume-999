@@ -61,7 +61,7 @@ class TabAudioSession {
     this.audioEl = new Audio();
     this.audioEl.srcObject = this.destNode.stream;
     this.audioEl.play()
-      .then(() => notifyBackground({ event: 'debug', tabId, msg: 'audio 元素开始播放' }))
+      .then(() => notifyBackground({ event: 'debug', tabId, msg: `audio 播放，gain=${this.gainNode.gain.value.toFixed(3)}, destTracks=${this.destNode.stream.getAudioTracks().length}` }))
       .catch((e) => notifyBackground({ event: 'debug', tabId, msg: `audio 元素播放失败：${e?.message || e}` }));
 
     // 页面刷新 / 跳转 / 标签页关闭时，浏览器会结束该捕获流
@@ -80,6 +80,7 @@ class TabAudioSession {
     const target = Math.min(VOLUME.MAX, Math.max(VOLUME.MIN, volume)) / 100;
     this.gainNode.gain.setTargetAtTime(target, audioCtx.currentTime, 0.02);
     console.log('[offscreen] setVolume：tabId =', this.tabId, ', gain →', target);
+    notifyBackground({ event: 'debug', tabId: this.tabId, msg: `setVolume gain→${target}` });
   }
 
   /** 捕获流被系统中断（页面跳转等）时的回调 */
