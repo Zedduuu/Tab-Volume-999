@@ -48,11 +48,13 @@ if ($StampManifest) {
   Write-Host "✓ 已更新 manifest.json version → $fullVer"
 }
 
-# 4) 打包（排除 .git）
+# 4) 打包（排除 .git / tools / .gitignore 等非扩展文件）
 $zipPath = Join-Path $outDir "Tab-Volume-999-$fullVer.zip"
 if (Test-Path $zipPath) { Remove-Item $zipPath -Force }
 Get-ChildItem -Path $root -Force |
   Where-Object Name -ne '.git' |
+  Where-Object Name -ne 'tools' |
+  Where-Object Name -ne '.gitignore' |
   Compress-Archive -DestinationPath $zipPath -Force
 
 Write-Host "✓ 已生成商店提交包： $zipPath"
