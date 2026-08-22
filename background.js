@@ -394,6 +394,7 @@ async function recaptureTab(tabId, attempt) {
   const state = await loadSession(tabId);
   if (!state) {
     // 没有已保存的音量设置：之前只是接管了默认音量，直接解除静音即可
+    waitingRecapture.delete(tabId);
     await unmuteTab(tabId);
     return;
   }
@@ -401,6 +402,7 @@ async function recaptureTab(tabId, attempt) {
   // 标签页可能已关闭
   const tab = await chrome.tabs.get(tabId).catch(() => null);
   if (!tab) {
+    waitingRecapture.delete(tabId);
     await clearSession(tabId);
     return;
   }
