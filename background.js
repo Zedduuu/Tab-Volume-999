@@ -65,6 +65,11 @@ const waitingRecapture = new Set();
 const recaptureRetryTimers = {};
 const WAITING_RETRY_MS = 10000;
 
+/** 处于「需要用户手势（activeTab 授权）才能恢复接管」的标签页：
+ *  纯后台无手势重捕必败（API 限制），加入此集合避免反复自动重试刷屏；
+ *  用户下次点击扩展图标时移除并恢复。 */
+const needsGesture = new Set();
+
 /** 进入「等待恢复」状态：标记 + 启动兜底定时重试（audible 快速路径失效时的保险） */
 function enterWaiting(tabId) {
   waitingRecapture.add(tabId);
@@ -362,6 +367,8 @@ async function unmuteTab(tabId) {
 async function handleStart({ tabId }) {
   if (typeof tabId !== 'number') return { ok: false, error: await t('errInvalidParams') };
   await ensureOffscreenDocument();
+  // 用户手势上下文：移除「需手势」标记，允许后续自动重试
+  needsGesture.delete(tabId);
   // 当前处于用户手势上下文（点击扩展图标）：激活离屏音频输出，
   // 解除自动播放策略对 <audio>/AudioContext 的抑制。
   sendToOffscreen({ type: MSG.OFFSCREEN_ACTIVATE }).catch(() => {});
@@ -396,6 +403,7 @@ async function handleCapture({ tabId, streamId, volume }) {
     const mutedNow = await safeGetMuted(tabId);
     console.log('[bg] handleCapture 成功：tabId =', tabId, ', setMuted 结果 =', mutedOk, ', 静音验证 =', mutedNow);
     stopWaiting(tabId);
+    needsGesture.delete(tabId);
     const state = await loadSession(tabId);
     if (state) await updateBadge(tabId, state);
   } else {
@@ -541,6 +549,7 @@ async function recaptureTab(tabId, attempt) {
     const mutedNow = await safeGetMuted(tabId);
     console.log('[bg] 重捕成功：tabId =', tabId, ', volume =', state.volume, ', setMuted =', mutedOk, ', 静音验证 =', mutedNow);
     stopWaiting(tabId);
+    needsGesture.delete(tabId);
     await updateBadge(tabId, state);
   } catch (err) {
     const errMsg = String(err?.message || '');
@@ -551,6 +560,7 @@ async function recaptureTab(tabId, attempt) {
       stopWaiting(tabId);
       clearTimeout(recaptureTimers[tabId]);
       delete recaptureTimers[tabId];
+      needsGesture.add(tabId);
       await unmuteTab(tabId);
       await updateBadge(tabId, null);
       console.warn('[bg] 无 activeTab 授权，解除静音并停止自动重试：tabId =', tabId);
@@ -632,6 +642,7 @@ async function ensureSessionsAlive() {
       console.warn('[bg] 离屏文档不存在，重建并恢复接管');
       await ensureOffscreenDocument().catch(() => {});
       for (const tabId of tabIds) {
+        if (needsGesture.has(tabId)) continue; // 需用户手势的标签页不再自动重试
         await recaptureTab(tabId, 1).catch(() => {});
       }
       return;
@@ -639,6 +650,7 @@ async function ensureSessionsAlive() {
 
     // 2) 离屏文档存活：逐个探测，恢复缺失的会话
     for (const tabId of tabIds) {
+      if (needsGesture.has(tabId)) continue; // 需用户手势的标签页不再自动重试
       const resp = await sendToOffscreen({ type: MSG.OFFSCREEN_START, tabId }).catch(() => ({ ok: false }));
       if (!resp?.ok || !resp?.alreadyActive) {
         console.log('[bg] 会话缺失，重新接管：tabId =', tabId);

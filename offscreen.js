@@ -146,9 +146,10 @@ async function getUserMediaTab(streamId) {
     console.log('[offscreen] getUserMedia(旧写法) 成功，tracks =', stream.getAudioTracks().length);
     return stream;
   } catch (err) {
-    console.error('[offscreen] getUserMedia(旧写法) 失败:', err.name, '-', err.message);
-    // 仅当失败源于约束写法本身（而非“标签页已被捕获”等）时，切换写法重试
-    if (err.name === 'TypeError' || /constraint|mandatory|overconstrained/i.test(String(err.message))) {
+    console.warn('[offscreen] getUserMedia(旧写法) 失败:', err.name, '-', err.message);
+    // Edge 对 mandatory 旧写法支持差（常报 AbortError/TypeError），
+    // 除「标签页已被捕获」类错误外一律切换新写法重试。
+    if (!/already|captur/i.test(String(err.message))) {
       try {
         const stream = await navigator.mediaDevices.getUserMedia({ audio: base });
         console.log('[offscreen] getUserMedia(新写法) 成功，tracks =', stream.getAudioTracks().length);
@@ -202,6 +203,14 @@ async function handleCapture({ tabId, streamId, volume }) {
   try {
     stream = await getUserMediaTab(streamId);
   } catch (err) {
+    // 竞态兜底：可能另一路 CAPTURE（如后台重捕）已抢先建立会话，
+    // 此时 getUserMedia 会报 Invalid state / Cannot capture，直接复用已有会话避免报错。
+    const reExisting = sessions.get(tabId);
+    if (reExisting && reExisting.stream.active) {
+      reExisting.setVolume(volume);
+      console.warn('[offscreen] 捕获失败但会话已存在，复用：tabId =', tabId, ', 原因 =', err?.name, err?.message);
+      return { ok: true, alreadyActive: true };
+    }
     console.error('[offscreen] 捕获失败：tabId =', tabId, ', name =', err?.name, ', message =', err?.message);
     notifyBackground({ event: 'error', tabId, error: String(err?.message || err) });
     // 返回错误码，由 background 用 chrome.i18n 翻译成用户语言
