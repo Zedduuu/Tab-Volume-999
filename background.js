@@ -60,6 +60,27 @@ const recaptureTimers = {};
 /** 处于「等待标签页恢复播放」状态的 tabId（暂停/无音频导致自动重捕失败后进入） */
 const waitingRecapture = new Set();
 
+/** 等待恢复期间的兜底重试定时器：tabId -> setTimeout id（每 WAITING_RETRY_MS 尝试一轮） */
+const recaptureRetryTimers = {};
+const WAITING_RETRY_MS = 10000;
+
+/** 进入「等待恢复」状态：标记 + 启动兜底定时重试（audible 快速路径失效时的保险） */
+function enterWaiting(tabId) {
+  waitingRecapture.add(tabId);
+  clearTimeout(recaptureRetryTimers[tabId]);
+  recaptureRetryTimers[tabId] = setTimeout(() => {
+    delete recaptureRetryTimers[tabId];
+    recaptureTab(tabId, 1);
+  }, WAITING_RETRY_MS);
+}
+
+/** 退出「等待恢复」状态：移出集合 + 停掉兜底定时器 */
+function stopWaiting(tabId) {
+  waitingRecapture.delete(tabId);
+  clearTimeout(recaptureRetryTimers[tabId]);
+  delete recaptureRetryTimers[tabId];
+}
+
 /* ------------------------------ 工具函数 ------------------------------ */
 
 /** i18n 取词简写：按用户偏好语言（async，返回 Promise） */
@@ -272,7 +293,7 @@ async function handleStart({ tabId }) {
   const resp = await sendToOffscreen({ type: MSG.OFFSCREEN_START, tabId });
   if (resp?.alreadyActive) {
     // 会话已存在：恢复该标签页的徽标数字
-    waitingRecapture.delete(tabId);
+    stopWaiting(tabId);
     const state = await loadSession(tabId);
     if (state) await updateBadge(tabId, state);
   }
@@ -296,7 +317,7 @@ async function handleCapture({ tabId, streamId, volume }) {
   });
   if (resp?.ok) {
     // 接管成功：显示该标签页的徽标数字
-    waitingRecapture.delete(tabId);
+    stopWaiting(tabId);
     const state = await loadSession(tabId);
     if (state) await updateBadge(tabId, state);
   }
@@ -394,7 +415,7 @@ async function recaptureTab(tabId, attempt) {
   const state = await loadSession(tabId);
   if (!state) {
     // 没有已保存的音量设置：之前只是接管了默认音量，直接解除静音即可
-    waitingRecapture.delete(tabId);
+    stopWaiting(tabId);
     await unmuteTab(tabId);
     return;
   }
@@ -402,7 +423,7 @@ async function recaptureTab(tabId, attempt) {
   // 标签页可能已关闭
   const tab = await chrome.tabs.get(tabId).catch(() => null);
   if (!tab) {
-    waitingRecapture.delete(tabId);
+    stopWaiting(tabId);
     await clearSession(tabId);
     return;
   }
@@ -416,8 +437,8 @@ async function recaptureTab(tabId, attempt) {
       volume: state.muted ? 0 : state.volume,
     });
     if (!resp?.ok) throw new Error(resp?.error || (await t('errRecapture')));
-    // 重捕成功：移出等待恢复集合，恢复徽标
-    waitingRecapture.delete(tabId);
+    // 重捕成功：退出等待状态，恢复徽标
+    stopWaiting(tabId);
     await updateBadge(tabId, state);
   } catch (err) {
     if (attempt < RECAPTURE.MAX_ATTEMPTS) {
@@ -425,11 +446,11 @@ async function recaptureTab(tabId, attempt) {
     } else {
       // 多次失败：标签页多半已暂停/无音频，浏览器拒绝提供捕获流。
       // 解除静音恢复原生播放（暂停时本来无声，用户无感知），
-      // 并标记「等待恢复播放」——等标签页重新出声（audible 变 true）时自动重新接管，
-      // 这样音量回到用户设置值，而不是永久变回原生音量。
+      // 并进入「等待恢复」：audible 快速路径 + 兜底定时重试双保险，
+      // 保证标签页一恢复出声，音量就自动回到用户设置值而不是永远停在原生。
       await unmuteTab(tabId);
       await updateBadge(tabId, null);
-      waitingRecapture.add(tabId);
+      enterWaiting(tabId);
     }
   }
 }
@@ -445,7 +466,7 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo) => {
   if (!waitingRecapture.has(tabId)) return;
   // audible=true = 标签页开始出声；status=complete = 页面加载完成（导航场景兜底）
   if (changeInfo.audible === true || changeInfo.status === 'complete') {
-    waitingRecapture.delete(tabId);
+    stopWaiting(tabId);
     recaptureTab(tabId, 1);
   }
 });
@@ -454,7 +475,7 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo) => {
 chrome.tabs.onRemoved.addListener((tabId) => {
   clearTimeout(recaptureTimers[tabId]);
   delete recaptureTimers[tabId];
-  waitingRecapture.delete(tabId);
+  stopWaiting(tabId);
   sendToOffscreen({ type: MSG.OFFSCREEN_STOP, tabId }).catch(() => {});
   clearSession(tabId);
 });
