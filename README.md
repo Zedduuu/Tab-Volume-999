@@ -24,13 +24,7 @@
 
 #### 方式一：从 Edge 扩展商店安装（推荐，最简单）
 
-> 商店审核通过后即可搜索到；审核期间请先使用「方式二」。
-
-1. 打开 Edge 浏览器，在地址栏输入 `edge://extensions/` 回车，
-   或直接访问 Edge 扩展商店（`https://microsoftedge.microsoft.com/addons/`）；
-2. 在商店搜索 **「标签页音量单独控制999」**（英文名 **Tab Volume 999**）；
-3. 点击该扩展的「**获取**」按钮，按提示确认安装；
-4. 安装完成后，点击工具栏上的图标即可使用；右键图标 →「固定」到工具栏更方便。
+https://microsoftedge.microsoft.com/addons/detail/%E6%A0%87%E7%AD%BE%E9%A1%B5%E9%9F%B3%E9%87%8F%E5%8D%95%E7%8B%AC%E6%8E%A7%E5%88%B6999/magnjigjnojiiaamfjbmikojbhhgjdbe
 
 #### 方式二：从 GitHub 手动安装（无需等待商店审核）
 
